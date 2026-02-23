@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<expansion version="2.0.0.0" buildVersion="2.12.2.55">
+    <local/>
+    <identifier>{{.Identifier}}</identifier>
+    <title>{{.Title}}</title>
+    <manufacturer>{{.Manufacturer}}</manufacturer>
+    <version>1.0.0.0</version>
+    <type>drum</type>
+    <priority>50</priority>
+    <img>Expansion.jpg</img>
+    <description>{{.Description}}</description>
+    <separator>-</separator>
+</expansion>

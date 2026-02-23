@@ -1,0 +1,16 @@
+[tools]
+go = "1.25"
+
+[tasks.install]
+alias = "i"
+run = [
+    "mise install"
+]
+
+[tasks.build]
+description = "Build"
+run = "go build ."
+
+[tasks.run]
+description = "Run"
+run = "go run ."
