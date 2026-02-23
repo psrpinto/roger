@@ -8,7 +8,7 @@
 - Use your own drum program as a template to keep pad colors and other settings consistent across all programs
 - Configurable pad layout and drum type detection
 
-![screenshot.png](screenshot.png)
+<video src="https://github.com/user-attachments/assets/294e9a2f-f1e7-45c1-bd61-4143ef09cd09" controls></video>
 
 ## Installation
 
