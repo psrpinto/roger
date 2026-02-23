@@ -2,7 +2,7 @@
 
 `roger` batch-converts drum sample packs into MPC Expansions. It's intended for use with sample packs that already provide samples split into _kits_, where one folder contains all samples for a single kit. Examples of such packs are the Samples From Mars packs.
 
-- Creates 16-pad drum programs with samples auto-assigned to pads by type (kick, snare, hihat, etc.)
+- Creates 16-pad drum programs with samples automatically assigned to pads by type (kick, snare, hihat, etc.)
 - Creates _Multikit_ programs with one kit per bank, for browsing multiple kits without switching programs
 - Generates audio previews for each program, so you can audition kits in the MPC browser
 - Use your own drum program as a template to keep pad colors and other settings consistent across all programs
