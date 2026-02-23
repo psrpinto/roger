@@ -9,6 +9,14 @@ builds:
 
 archives:
   - formats: [tar.gz]
+    name_template: |-
+      {{- if and (eq .Os "darwin") (eq .Arch "amd64") -}}
+      roger_{{ .Version }}_mac_intel
+      {{- else if and (eq .Os "darwin") (eq .Arch "arm64") -}}
+      roger_{{ .Version }}_mac
+      {{- else -}}
+      {{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}
+      {{- end -}}
     format_overrides:
       - goos: windows
         formats: [zip]
