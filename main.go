@@ -67,6 +67,12 @@ func main() {
 	}
 
 	// Collect and preview phase
+	totalKits := 0
+	for _, topDir := range topLevelDirs {
+		totalKits += len(findKitDirs(topDir))
+	}
+	kitsDone := 0
+
 	var packs []pack
 	for _, topDir := range topLevelDirs {
 		packName := formatKitName(topDir)
@@ -107,6 +113,8 @@ func main() {
 
 		kitsByGroup := make(map[string][]kitData)
 		for _, kitPath := range kitPaths {
+			kitsDone++
+			fmt.Fprintf(os.Stderr, "\r\033[KScanning samples... (%d/%d)", kitsDone, totalKits)
 			dirTokens := deriveSrcTokens(topDir, kitPath)
 
 			kitEntries, err := os.ReadDir(kitPath)
@@ -171,6 +179,9 @@ func main() {
 		}
 
 		packs = append(packs, pack{name: packName, dir: topDir, groups: groups})
+	}
+	if totalKits > 0 {
+		fmt.Fprintf(os.Stderr, "\r\033[K")
 	}
 
 	// Compute a global leftColWidth across all packs for consistent grid width
