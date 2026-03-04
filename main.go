@@ -265,7 +265,7 @@ func main() {
 			if group.name == "" {
 				multiBaseName = "+" + p.name + "-Multi"
 			} else {
-				multiBaseName = "+" + p.name + "-" + group.name + "-Multi"
+				multiBaseName = "+" + dedupeTokens(p.name+"-"+group.name) + "-Multi"
 			}
 			// Split into chunks of 8 banks max
 			for chunkIdx := 0; chunkIdx*8 < len(group.kits); chunkIdx++ {

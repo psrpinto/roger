@@ -62,6 +62,18 @@ func cleanSampleName(displayName string, dirTokens map[string]bool) string {
 	return strings.Join(filtered, " ")
 }
 
+// dedupeTokens removes consecutive duplicate tokens from a hyphen-separated name.
+func dedupeTokens(name string) string {
+	tokens := strings.Split(name, "-")
+	deduped := tokens[:1]
+	for _, t := range tokens[1:] {
+		if !strings.EqualFold(t, deduped[len(deduped)-1]) {
+			deduped = append(deduped, t)
+		}
+	}
+	return strings.Join(deduped, "-")
+}
+
 // deriveKitName builds a kit name from path components between topDir and kitPath.
 // E.g. topDir="Input/ExamplePack", kitPath="Input/ExamplePack/Kit 1"
 // => "ExamplePack-1"
@@ -80,15 +92,7 @@ func deriveKitName(topDir, kitPath string) string {
 			formatted = append(formatted, f)
 		}
 	}
-	joined := strings.Join(formatted, "-")
-	tokens := strings.Split(joined, "-")
-	deduped := tokens[:1]
-	for _, t := range tokens[1:] {
-		if !strings.EqualFold(t, deduped[len(deduped)-1]) {
-			deduped = append(deduped, t)
-		}
-	}
-	return strings.Join(deduped, "-")
+	return dedupeTokens(strings.Join(formatted, "-"))
 }
 
 // deriveSrcTokens tokenizes all path components between topDir and kitPath (inclusive).
