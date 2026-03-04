@@ -150,59 +150,6 @@ func renderProgramXml(programName string, banks [][16]sample) (result []byte, er
 	return
 }
 
-// extractPadColorsFromTemplate reads the 16 pad colors from the loaded programTemplate
-// and returns them as ANSI 24-bit foreground color escape sequences.
-func extractPadColorsFromTemplate() [16]string {
-	var colors [16]string
-
-	// Scan the XML for ProgramPads-v2.10 and grab its text content.
-	decoder := xml.NewDecoder(bytes.NewReader(programTemplate))
-	var padsJSON string
-	for {
-		tok, err := decoder.Token()
-		if err != nil {
-			break
-		}
-		se, ok := tok.(xml.StartElement)
-		if !ok || se.Name.Local != "ProgramPads-v2.10" {
-			continue
-		}
-		if err := decoder.DecodeElement(&padsJSON, &se); err != nil {
-			break
-		}
-		break
-	}
-	if padsJSON == "" {
-		return colors
-	}
-
-	var data map[string]interface{}
-	if err := json.Unmarshal([]byte(padsJSON), &data); err != nil {
-		return colors
-	}
-	programPads, ok := data["ProgramPads-v2.10"].(map[string]interface{})
-	if !ok {
-		return colors
-	}
-	pads, ok := programPads["pads"].(map[string]interface{})
-	if !ok {
-		return colors
-	}
-
-	for i := range 16 {
-		val, ok := pads[fmt.Sprintf("value%d", i)]
-		if !ok {
-			continue
-		}
-		colorInt := int(val.(float64))
-		r := (colorInt >> 16) & 0xFF
-		g := (colorInt >> 8) & 0xFF
-		b := colorInt & 0xFF
-		colors[i] = fmt.Sprintf("\033[38;2;%d;%d;%dm", r, g, b)
-	}
-	return colors
-}
-
 // replicatePadColors takes the ProgramPads JSON and replicates the first 16 pad colors
 // across all banks (up to 8 banks = 128 pads total)
 func replicatePadColors(padsJSON string, numBanks int) (string, error) {
