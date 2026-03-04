@@ -77,12 +77,14 @@ func main() {
 	kitsDone := 0
 
 	var packs []pack
+	var wrongSampleCount []string
+	var emptyPacks []string
 	for _, topDir := range topLevelDirs {
 		packName := formatKitName(topDir)
 		kitPaths := findKitDirs(topDir)
 
 		if len(kitPaths) == 0 {
-			fmt.Fprintf(os.Stderr, "warning: %s contains no kit directories with WAV files\n", filepath.Base(topDir))
+			emptyPacks = append(emptyPacks, filepath.Base(topDir))
 			continue
 		}
 
@@ -156,7 +158,8 @@ func main() {
 			}
 
 			if len(samples) != 16 {
-				fmt.Fprintf(os.Stderr, "warning: %s contains %d WAV files, expected 16\n", kitPath, len(samples))
+				rel, _ := filepath.Rel(srcDir, kitPath)
+				wrongSampleCount = append(wrongSampleCount, fmt.Sprintf("%s (%d)", rel, len(samples)))
 			}
 
 			kitName := deriveKitName(topDir, kitPath)
@@ -216,6 +219,32 @@ func main() {
 	fmt.Printf("%sEach grid is a 16-pad MPC kit. The left column lists samples with their duration.%s\n", dim, reset)
 	fmt.Printf("%sIn the grid: \033[32m green \033[0m%s= type matched, \033[33m yellow \033[0m%s= filled from remaining, \033[31m red \033[0m%s= empty pad.%s\n", dim, dim, dim, dim, reset)
 
+	// Show warnings
+	var missingImages []string
+	for _, p := range packs {
+		if imgPath, _ := findImage(p.dir); imgPath == "" {
+			missingImages = append(missingImages, p.name)
+		}
+	}
+	yellow := "\033[33m"
+	if len(emptyPacks) > 0 {
+		fmt.Println()
+		for _, p := range emptyPacks {
+			fmt.Fprintf(os.Stderr, "%swarning:%s %s contains no kit directories with WAV files\n", yellow, reset, p)
+		}
+	}
+	if len(wrongSampleCount) > 0 {
+		fmt.Println()
+		for _, s := range wrongSampleCount {
+			fmt.Fprintf(os.Stderr, "%swarning:%s %s WAV files, expected 16\n", yellow, reset, s)
+		}
+	}
+	if len(missingImages) > 0 {
+		fmt.Println()
+		fmt.Fprintf(os.Stderr, "%swarning:%s no cover image found for: %s\n", yellow, reset, strings.Join(missingImages, ", "))
+		fmt.Println("Place an image file in the top-level directory of each pack so that it will be used as the cover image for the Expansion.")
+	}
+
 	// Ask for confirmation before generating output
 	fmt.Print("\nGenerate output files? [Y/n] ")
 	scanner := bufio.NewScanner(os.Stdin)
@@ -230,7 +259,6 @@ func main() {
 	// Output phase
 	var totalSize int64
 	totalSampleCount := 0
-	var missingImages []string
 
 	kitCount := 0
 	for _, p := range packs {
@@ -374,19 +402,11 @@ func main() {
 			} else if info, err := os.Stat(destPath); err == nil {
 				totalSize += info.Size()
 			}
-		} else {
-			missingImages = append(missingImages, p.name)
 		}
 	}
 
 	if kitCount > 0 {
 		fmt.Fprintf(os.Stderr, "\r\033[K")
-	}
-
-	if len(missingImages) > 0 {
-		fmt.Println()
-		fmt.Fprintf(os.Stderr, "warning: no cover image found for: %s\n", strings.Join(missingImages, ", "))
-		fmt.Println("Place an image file in the top-level directory of each pack so that it will be used as the cover image for the Expansion.")
 	}
 
 	fmt.Printf("\n%d kits, %d samples, %s\n", kitCount, totalSampleCount, formatSize(totalSize))
