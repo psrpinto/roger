@@ -226,6 +226,14 @@ func main() {
 	totalSampleCount := 0
 	var missingImages []string
 
+	kitCount := 0
+	for _, p := range packs {
+		for _, group := range p.groups {
+			kitCount += len(group.kits)
+		}
+	}
+	kitsGenerated := 0
+
 	for _, p := range packs {
 		packOutDir := filepath.Join(destDir, p.name)
 		previewDir := filepath.Join(packOutDir, "[Previews]")
@@ -255,6 +263,9 @@ func main() {
 				} else if info, err := os.Stat(previewPath); err == nil {
 					totalSize += info.Size()
 				}
+
+				kitsGenerated++
+				fmt.Fprintf(os.Stderr, "\r\033[KGenerating programs... (%d/%d)", kitsGenerated, kitCount)
 			}
 
 			// Generate multi-kit program for this group (if it has more than one kit)
@@ -362,17 +373,14 @@ func main() {
 		}
 	}
 
+	if kitCount > 0 {
+		fmt.Fprintf(os.Stderr, "\r\033[K")
+	}
+
 	if len(missingImages) > 0 {
 		fmt.Println()
 		fmt.Fprintf(os.Stderr, "warning: no cover image found for: %s\n", strings.Join(missingImages, ", "))
 		fmt.Println("Place an image file in the top-level directory of each pack so that it will be used as the cover image for the Expansion.")
-	}
-
-	kitCount := 0
-	for _, p := range packs {
-		for _, group := range p.groups {
-			kitCount += len(group.kits)
-		}
 	}
 
 	fmt.Printf("\n%d kits, %d samples, %s\n", kitCount, totalSampleCount, formatSize(totalSize))
