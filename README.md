@@ -21,11 +21,11 @@ If you're not used to working with terminals, you can also just double-click the
 ## Usage
 
 ```shell
-roger [PackName]
+roger [PackName ...]
 ```
 The first time you run `roger`, it creates a workspace on your Desktop at `~/Desktop/roger/` with `Input/` and `Output/` folders. If `Input/` is empty, `roger` generates example packs so you can see how things work.
 
-With no arguments, all packs in `Input/` are processed. Pass a pack name to process just that one.
+With no arguments, all packs in `Input/` are processed. Pass one or more pack names to process only those.
 
 ## Folder structure
 

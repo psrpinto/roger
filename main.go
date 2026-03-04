@@ -42,12 +42,14 @@ func main() {
 
 	var topLevelDirs []string
 	if len(os.Args) > 1 {
-		packDir := filepath.Join(srcDir, os.Args[1])
-		if info, err := os.Stat(packDir); err != nil || !info.IsDir() {
-			fmt.Fprintf(os.Stderr, "error: pack directory not found: %s\n", packDir)
-			os.Exit(1)
+		for _, arg := range os.Args[1:] {
+			packDir := filepath.Join(srcDir, arg)
+			if info, err := os.Stat(packDir); err != nil || !info.IsDir() {
+				fmt.Fprintf(os.Stderr, "error: pack directory not found: %s\n", packDir)
+				os.Exit(1)
+			}
+			topLevelDirs = append(topLevelDirs, packDir)
 		}
-		topLevelDirs = []string{packDir}
 	} else {
 		topLevelDirs = listSubdirs(srcDir)
 	}
@@ -400,10 +402,10 @@ func printUsage(baseDir string) {
 
 	fmt.Printf("%sroger%s organizes drum sample WAV files into 16-pad MPC kits.\n", bold, reset)
 	fmt.Println()
-	fmt.Printf("Usage: %sroger%s [PackName]\n", bold, reset)
+	fmt.Printf("Usage: %sroger%s [PackName ...]\n", bold, reset)
 	fmt.Println()
 	fmt.Println("With no arguments, all packs in Input/ are processed.")
-	fmt.Printf("Pass a pack name to process a single pack from Input/.\n")
+	fmt.Printf("Pass one or more pack names to process only those.\n")
 	fmt.Println()
 	fmt.Printf("Workspace: %s%s%s\n", cyan, baseDir, reset)
 	fmt.Println()
