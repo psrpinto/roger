@@ -114,9 +114,8 @@ func renderKits(p pack, leftColWidth int) {
 			fmt.Println(blank + topBorder())
 		}
 
-		for ki := len(group.kits) - 1; ki >= 0; ki-- {
-			kit := group.kits[ki]
-			if ki < len(group.kits)-1 {
+		for ki, kit := range group.kits {
+			if ki > 0 {
 				fmt.Println(strings.Repeat("━", leftColWidth) + heavySeparator())
 			}
 

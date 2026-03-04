@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 )
 
@@ -173,6 +174,9 @@ func main() {
 			}
 			groups = append(groups, kitGroup{name: gk.name, dir: gk.dir, kits: kits})
 		}
+		sort.Slice(groups, func(i, j int) bool {
+			return groups[i].name < groups[j].name
+		})
 
 		if len(groups) == 0 {
 			continue
