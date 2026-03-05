@@ -11,6 +11,7 @@ run = [
 description = "Build"
 run = "go build ."
 
-[tasks.run]
-description = "Run"
+[tasks.start]
+description = "Start"
+alias = "s"
 run = "go run ."
