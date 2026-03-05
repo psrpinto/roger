@@ -1,4 +1,4 @@
-package main
+package sampler
 
 import (
 	"fmt"
@@ -12,8 +12,8 @@ import (
 	"github.com/go-audio/wav"
 )
 
-// listSubdirs returns the full paths of immediate subdirectories of dir.
-func listSubdirs(dir string) []string {
+// ListSubdirs returns the full paths of immediate subdirectories of dir.
+func ListSubdirs(dir string) []string {
 	entries, err := os.ReadDir(dir)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: reading directory %s: %s\n", dir, err)
@@ -28,8 +28,8 @@ func listSubdirs(dir string) []string {
 	return dirs
 }
 
-// findKitDirs walks root recursively and returns sorted paths of directories containing .wav files.
-func findKitDirs(root string) []string {
+// FindKitDirs walks root recursively and returns sorted paths of directories containing .wav files.
+func FindKitDirs(root string) []string {
 	var kitDirs []string
 	err := filepath.WalkDir(root, func(path string, d os.DirEntry, err error) error {
 		if err != nil {
@@ -57,7 +57,7 @@ func findKitDirs(root string) []string {
 	return kitDirs
 }
 
-func copyFile(src, dst string) error {
+func CopyFile(src, dst string) error {
 	in, err := os.Open(src)
 	if err != nil {
 		return err
@@ -74,7 +74,7 @@ func copyFile(src, dst string) error {
 	return err
 }
 
-func readSampleInfo(path string) (frameCount int, sampleRate int, err error) {
+func ReadSampleInfo(path string) (frameCount int, sampleRate int, err error) {
 	f, err := os.Open(path)
 	if err != nil {
 		return 0, 0, err
@@ -90,8 +90,8 @@ func readSampleInfo(path string) (frameCount int, sampleRate int, err error) {
 	return buffer.NumFrames(), int(decoder.SampleRate), nil
 }
 
-// readPCMData reads a WAV file and returns the full PCM data along with format info.
-func readPCMData(path string) (*audio.IntBuffer, error) {
+// ReadPCMData reads a WAV file and returns the full PCM data along with format info.
+func ReadPCMData(path string) (*audio.IntBuffer, error) {
 	f, err := os.Open(path)
 	if err != nil {
 		return nil, err

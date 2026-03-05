@@ -1,4 +1,4 @@
-package main
+package tui
 
 import (
 	"strings"
@@ -7,6 +7,9 @@ import (
 	"charm.land/bubbles/v2/viewport"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
+
+	"roger/internal/config"
+	"roger/internal/kit"
 )
 
 type appState int
@@ -26,7 +29,7 @@ type scanProgressMsg struct {
 }
 
 type scanDoneMsg struct {
-	packs            []pack
+	packs            []kit.Pack
 	emptyPacks       []string
 	wrongSampleCount []string
 }
@@ -47,12 +50,12 @@ type errMsg struct {
 
 func (e errMsg) Error() string { return e.err.Error() }
 
-// Model
-
-type model struct {
+// Model is the Bubble Tea application model.
+type Model struct {
 	state appState
 
 	// config
+	cfg                      *config.Config
 	baseDir, srcDir, destDir string
 	topLevelDirs             []string
 	padStyles                [16]lipgloss.Style
@@ -69,7 +72,7 @@ type model struct {
 	scanTotal    int
 
 	// scan results
-	packs            []pack
+	packs            []kit.Pack
 	emptyPacks       []string
 	wrongSampleCount []string
 
@@ -79,16 +82,16 @@ type model struct {
 	genTotal    int
 
 	// final result (read after Tea exits)
-	kitCount    int
-	sampleCount int
-	totalSize   int64
-	aborted     bool
+	KitCount    int
+	SampleCount int
+	TotalSize   int64
+	Aborted     bool
 
 	// terminal size
 	width, height int
 }
 
-func newModel(baseDir, srcDir, destDir string, topLevelDirs []string, isFirstRun bool, padStyles [16]lipgloss.Style) model {
+func NewModel(baseDir, srcDir, destDir string, topLevelDirs []string, isFirstRun bool, padStyles [16]lipgloss.Style, cfg *config.Config) Model {
 	s := spinner.New(
 		spinner.WithSpinner(spinner.Dot),
 		spinner.WithStyle(lipgloss.NewStyle().Foreground(lipgloss.Color("6"))),
@@ -99,8 +102,9 @@ func newModel(baseDir, srcDir, destDir string, topLevelDirs []string, isFirstRun
 		state = stateFirstRun
 	}
 
-	m := model{
+	m := Model{
 		state:        state,
+		cfg:          cfg,
 		baseDir:      baseDir,
 		srcDir:       srcDir,
 		destDir:      destDir,
@@ -116,21 +120,21 @@ func newModel(baseDir, srcDir, destDir string, topLevelDirs []string, isFirstRun
 	return m
 }
 
-func (m model) Init() tea.Cmd {
+func (m Model) Init() tea.Cmd {
 	switch m.state {
 	case stateFirstRun:
 		return nil
 	case stateScanning:
 		return tea.Batch(
 			m.spinner.Tick,
-			scanPacksCmd(m.scanCh, m.topLevelDirs, m.srcDir),
+			scanPacksCmd(m.scanCh, m.topLevelDirs, m.srcDir, m.cfg),
 			waitForScanProgress(m.scanCh),
 		)
 	}
 	return nil
 }
 
-func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 
 	case tea.WindowSizeMsg:
@@ -152,14 +156,14 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.scanCh = make(chan scanProgressMsg, 1)
 				return m, tea.Batch(
 					m.spinner.Tick,
-					scanPacksCmd(m.scanCh, m.topLevelDirs, m.srcDir),
+					scanPacksCmd(m.scanCh, m.topLevelDirs, m.srcDir, m.cfg),
 					waitForScanProgress(m.scanCh),
 				)
 			case "n", "N", "esc", "q":
-				m.aborted = true
+				m.Aborted = true
 				return m, tea.Quit
 			case "ctrl+c":
-				m.aborted = true
+				m.Aborted = true
 				return m, tea.Quit
 			}
 
@@ -170,14 +174,14 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.genCh = make(chan genProgressMsg, 1)
 				return m, tea.Batch(
 					m.spinner.Tick,
-					generatePacksCmd(m.genCh, m.packs, m.destDir),
+					generatePacksCmd(m.genCh, m.packs, m.destDir, m.cfg.PadLayout),
 					waitForGenProgress(m.genCh),
 				)
 			case "n", "N", "esc", "q":
-				m.aborted = true
+				m.Aborted = true
 				return m, tea.Quit
 			case "ctrl+c":
-				m.aborted = true
+				m.Aborted = true
 				return m, tea.Quit
 			default:
 				var cmd tea.Cmd
@@ -187,7 +191,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		case stateScanning, stateGenerating:
 			if msg.String() == "ctrl+c" {
-				m.aborted = true
+				m.Aborted = true
 				return m, tea.Quit
 			}
 		}
@@ -210,7 +214,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.footer = "\n" + renderLegend() + renderWarnings(m.packs, m.emptyPacks, m.wrongSampleCount) + "\nGenerate output files? [Y/n] "
 		footerHeight := strings.Count(m.footer, "\n") + 1
 
-		content := renderGrids(m.packs, m.padStyles)
+		content := renderGrids(m.packs, m.padStyles, m.cfg.DrumTypes, m.cfg.PadLayout)
 		vp := viewport.New(
 			viewport.WithWidth(m.width),
 			viewport.WithHeight(m.height-footerHeight),
@@ -228,9 +232,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, waitForGenProgress(m.genCh)
 
 	case genDoneMsg:
-		m.kitCount = msg.kitCount
-		m.sampleCount = msg.sampleCount
-		m.totalSize = msg.totalSize
+		m.KitCount = msg.kitCount
+		m.SampleCount = msg.sampleCount
+		m.TotalSize = msg.totalSize
 		m.state = stateDone
 		return m, tea.Quit
 
@@ -247,11 +251,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-func (m model) View() tea.View {
+func (m Model) View() tea.View {
 	var s string
 	switch m.state {
 	case stateFirstRun:
-		s = renderUsage(m.baseDir) + "\n" +
+		s = RenderUsage(m.baseDir) + "\n" +
 			"Example directories have been created in Input/ to demonstrate the structure.\n" +
 			"Preview example kits? [Y/n] "
 	case stateScanning:

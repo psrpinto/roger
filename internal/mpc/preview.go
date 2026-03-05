@@ -1,4 +1,4 @@
-package main
+package mpc
 
 import (
 	"fmt"
@@ -6,6 +6,9 @@ import (
 
 	"github.com/go-audio/audio"
 	"github.com/go-audio/wav"
+
+	"roger/internal/kit"
+	"roger/internal/sampler"
 )
 
 // previewPattern defines the 16th-note step positions (0–31) for each drum type
@@ -50,14 +53,14 @@ var previewPattern = map[string][]int{
 
 var defaultPattern = []int{0, 8, 16, 24}
 
-// generatePreview creates a drum pattern audio preview for one or more banks of samples.
-func generatePreview(banks [][16]sample, outputPath string) error {
+// GeneratePreview creates a drum pattern audio preview for one or more banks of samples.
+func GeneratePreview(banks [][16]kit.Sample, padLayout [16][]string, outputPath string) error {
 	// Determine output sample rate from the first non-empty sample.
 	sampleRate := 0
 	for _, bank := range banks {
 		for _, s := range bank {
-			if s.filename != "" && s.sampleRate > 0 {
-				sampleRate = s.sampleRate
+			if s.Filename != "" && s.SampleRate > 0 {
+				sampleRate = s.SampleRate
 				break
 			}
 		}
@@ -82,21 +85,21 @@ func generatePreview(banks [][16]sample, outputPath string) error {
 		// Group pads by their primary drum kind.
 		type padInfo struct {
 			index int
-			s     sample
+			s     kit.Sample
 		}
 		kindPads := make(map[string][]padInfo)
 		for i, s := range bank {
-			if s.filename == "" {
+			if s.Filename == "" {
 				continue
 			}
-			kind := string(SampleKind(cfg.PadLayout[i][0]))
+			kind := padLayout[i][0]
 			kindPads[kind] = append(kindPads[kind], padInfo{index: i, s: s})
 		}
 
 		// Collect all triggers: (stepPosition, sample).
 		type trigger struct {
 			step   int
-			sample sample
+			sample kit.Sample
 		}
 		var triggers []trigger
 
@@ -113,13 +116,13 @@ func generatePreview(banks [][16]sample, outputPath string) error {
 
 		// Load PCM data for all triggered samples.
 		for _, t := range triggers {
-			if _, ok := pcmCache[t.sample.sourcePath]; !ok {
-				buf, err := readPCMData(t.sample.sourcePath)
+			if _, ok := pcmCache[t.sample.SourcePath]; !ok {
+				buf, err := sampler.ReadPCMData(t.sample.SourcePath)
 				if err != nil {
-					fmt.Fprintf(os.Stderr, "warning: failed to read sample for preview: %s\n", t.sample.sourcePath)
+					fmt.Fprintf(os.Stderr, "warning: failed to read sample for preview: %s\n", t.sample.SourcePath)
 					continue
 				}
-				pcmCache[t.sample.sourcePath] = buf
+				pcmCache[t.sample.SourcePath] = buf
 			}
 		}
 
@@ -130,7 +133,7 @@ func generatePreview(banks [][16]sample, outputPath string) error {
 		mix := make([]int64, segmentFrames*2)
 
 		for _, t := range triggers {
-			buf, ok := pcmCache[t.sample.sourcePath]
+			buf, ok := pcmCache[t.sample.SourcePath]
 			if !ok {
 				continue
 			}

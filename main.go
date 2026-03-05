@@ -6,15 +6,21 @@ import (
 	"path/filepath"
 
 	tea "charm.land/bubbletea/v2"
+
+	"roger/internal/config"
+	"roger/internal/examples"
+	"roger/internal/mpc"
+	"roger/internal/sampler"
+	"roger/internal/tui"
 )
 
 func main() {
-	baseDir := filepath.Join(desktopDir(), "roger")
+	baseDir := filepath.Join(sampler.DesktopDir(), "roger")
 	srcDir := filepath.Join(baseDir, "Input")
 	destDir := filepath.Join(baseDir, "Output")
 
 	if len(os.Args) > 1 && (os.Args[1] == "--help" || os.Args[1] == "-h") {
-		fmt.Print(renderUsage(baseDir))
+		fmt.Print(tui.RenderUsage(baseDir))
 		return
 	}
 
@@ -27,17 +33,23 @@ func main() {
 
 	templatePath := filepath.Join(baseDir, "template.xpm")
 	if _, err := os.Stat(templatePath); os.IsNotExist(err) {
-		os.WriteFile(templatePath, programTemplate, 0o644)
+		os.WriteFile(templatePath, mpc.ProgramTemplate, 0o644)
 	}
 	expansionPath := filepath.Join(baseDir, "expansion.xml")
 	if _, err := os.Stat(expansionPath); os.IsNotExist(err) {
-		os.WriteFile(expansionPath, expansionTemplate, 0o644)
+		os.WriteFile(expansionPath, mpc.ExpansionTemplate, 0o644)
 	}
 
-	loadCustomTemplate(baseDir)
-	loadCustomExpansionTemplate(baseDir)
-	loadOrCreateConfig(baseDir)
-	padStyles := extractPadStyles()
+	mpc.LoadCustomTemplate(baseDir)
+	mpc.LoadCustomExpansionTemplate(baseDir)
+
+	cfg, err := config.LoadOrCreate(baseDir)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: %s\n", err)
+		os.Exit(1)
+	}
+
+	padStyles := mpc.ExtractPadStyles()
 
 	var topLevelDirs []string
 	if len(os.Args) > 1 {
@@ -50,17 +62,17 @@ func main() {
 			topLevelDirs = append(topLevelDirs, packDir)
 		}
 	} else {
-		topLevelDirs = listSubdirs(srcDir)
+		topLevelDirs = sampler.ListSubdirs(srcDir)
 	}
 
 	isFirstRun := false
 	if len(os.Args) <= 1 && len(topLevelDirs) == 0 {
-		createExampleDirs(srcDir)
-		topLevelDirs = listSubdirs(srcDir)
+		examples.CreateExampleDirs(srcDir)
+		topLevelDirs = sampler.ListSubdirs(srcDir)
 		isFirstRun = true
 	}
 
-	m := newModel(baseDir, srcDir, destDir, topLevelDirs, isFirstRun, padStyles)
+	m := tui.NewModel(baseDir, srcDir, destDir, topLevelDirs, isFirstRun, padStyles, cfg)
 	p := tea.NewProgram(m)
 	finalModel, err := p.Run()
 	if err != nil {
@@ -68,10 +80,10 @@ func main() {
 		os.Exit(1)
 	}
 
-	fm := finalModel.(model)
-	if fm.aborted {
+	fm := finalModel.(tui.Model)
+	if fm.Aborted {
 		fmt.Println("Aborted.")
-	} else if fm.kitCount > 0 {
-		fmt.Printf("\n%d kits, %d samples, %s\n", fm.kitCount, fm.sampleCount, formatSize(fm.totalSize))
+	} else if fm.KitCount > 0 {
+		fmt.Printf("\n%d kits, %d samples, %s\n", fm.KitCount, fm.SampleCount, sampler.FormatSize(fm.TotalSize))
 	}
 }

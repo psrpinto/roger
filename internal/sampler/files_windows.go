@@ -1,4 +1,4 @@
-package main
+package sampler
 
 import (
 	"fmt"
@@ -8,7 +8,7 @@ import (
 	"golang.org/x/sys/windows"
 )
 
-func desktopDir() string {
+func DesktopDir() string {
 	dir, err := windows.KnownFolderPath(windows.FOLDERID_Desktop, 0)
 	if err == nil && dir != "" {
 		return dir

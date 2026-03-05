@@ -1,4 +1,4 @@
-package main
+package mpc
 
 import (
 	"bytes"
@@ -10,21 +10,25 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"charm.land/lipgloss/v2"
+
+	"roger/internal/kit"
 )
 
 //go:embed templates/program.xpm
-var programTemplate []byte
+var ProgramTemplate []byte
 
-func loadCustomTemplate(baseDir string) {
+func LoadCustomTemplate(baseDir string) {
 	path := filepath.Join(baseDir, "template.xpm")
 	if data, err := os.ReadFile(path); err == nil {
-		programTemplate = data
+		ProgramTemplate = data
 	}
 }
 
-func renderProgramXml(programName string, banks [][16]sample) (result []byte, err error) {
+func RenderProgramXml(programName string, banks [][16]kit.Sample) (result []byte, err error) {
 	var buf bytes.Buffer
-	decoder := xml.NewDecoder(bytes.NewBuffer(programTemplate))
+	decoder := xml.NewDecoder(bytes.NewBuffer(ProgramTemplate))
 	encoder := xml.NewEncoder(&buf)
 
 	totalInstruments := len(banks) * 16
@@ -97,7 +101,7 @@ func renderProgramXml(programName string, banks [][16]sample) (result []byte, er
 					}
 
 					smpl := banks[bank][pad]
-					sampleName = smpl.outputName
+					sampleName = smpl.OutputName
 					if err = encoder.EncodeElement(sampleName, v); err != nil {
 						return
 					}
@@ -113,7 +117,7 @@ func renderProgramXml(programName string, banks [][16]sample) (result []byte, er
 					}
 
 					smpl := banks[bank][pad]
-					sampleLength := smpl.frameCount
+					sampleLength := smpl.FrameCount
 					sliceEnd = fmt.Sprintf("%d", sampleLength)
 					if err = encoder.EncodeElement(sliceEnd, v); err != nil {
 						return
@@ -231,4 +235,59 @@ func replicatePadColors(padsJSON string, numBanks int) (string, error) {
 	buf.WriteString("}")
 
 	return buf.String(), nil
+}
+
+// ExtractPadStyles reads the 16 pad colors from ProgramTemplate
+// and returns them as lipgloss styles with colored foregrounds.
+func ExtractPadStyles() [16]lipgloss.Style {
+	var styles [16]lipgloss.Style
+	for i := range styles {
+		styles[i] = lipgloss.NewStyle()
+	}
+
+	decoder := xml.NewDecoder(bytes.NewReader(ProgramTemplate))
+	var padsJSON string
+	for {
+		tok, err := decoder.Token()
+		if err != nil {
+			break
+		}
+		se, ok := tok.(xml.StartElement)
+		if !ok || se.Name.Local != "ProgramPads-v2.10" {
+			continue
+		}
+		if err := decoder.DecodeElement(&padsJSON, &se); err != nil {
+			break
+		}
+		break
+	}
+	if padsJSON == "" {
+		return styles
+	}
+
+	var data map[string]interface{}
+	if err := json.Unmarshal([]byte(padsJSON), &data); err != nil {
+		return styles
+	}
+	programPads, ok := data["ProgramPads-v2.10"].(map[string]interface{})
+	if !ok {
+		return styles
+	}
+	pads, ok := programPads["pads"].(map[string]interface{})
+	if !ok {
+		return styles
+	}
+
+	for i := range 16 {
+		val, ok := pads[fmt.Sprintf("value%d", i)]
+		if !ok {
+			continue
+		}
+		colorInt := int(val.(float64))
+		r := (colorInt >> 16) & 0xFF
+		g := (colorInt >> 8) & 0xFF
+		b := colorInt & 0xFF
+		styles[i] = lipgloss.NewStyle().Foreground(lipgloss.Color(fmt.Sprintf("#%02x%02x%02x", r, g, b)))
+	}
+	return styles
 }

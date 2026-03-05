@@ -1,4 +1,4 @@
-package main
+package sampler
 
 import (
 	"fmt"
@@ -8,7 +8,7 @@ import (
 	"unicode/utf8"
 )
 
-func titleCase(s string) string {
+func TitleCase(s string) string {
 	r, size := utf8.DecodeRuneInString(s)
 	if r == utf8.RuneError {
 		return s
@@ -16,25 +16,25 @@ func titleCase(s string) string {
 	return string(unicode.ToUpper(r)) + s[size:]
 }
 
-func split(name string) []string {
+func Split(name string) []string {
 	return strings.FieldsFunc(name, func(r rune) bool {
 		return r == ' ' || r == '-' || r == '_' || r == '.'
 	})
 }
 
-func formatKitName(dir string) string {
-	words := split(filepath.Base(dir))
+func FormatKitName(dir string) string {
+	words := Split(filepath.Base(dir))
 	filtered := words[:0]
 	for _, w := range words {
 		if strings.ToLower(w) != "kit" {
-			filtered = append(filtered, titleCase(w))
+			filtered = append(filtered, TitleCase(w))
 		}
 	}
 	return strings.Join(filtered, "-")
 }
 
-func tokenize(name string) map[string]bool {
-	words := split(name)
+func Tokenize(name string) map[string]bool {
+	words := Split(name)
 	m := make(map[string]bool, len(words))
 	for _, w := range words {
 		m[strings.ToLower(w)] = true
@@ -42,7 +42,7 @@ func tokenize(name string) map[string]bool {
 	return m
 }
 
-func allDigits(s string) bool {
+func AllDigits(s string) bool {
 	for _, r := range s {
 		if r < '0' || r > '9' {
 			return false
@@ -51,19 +51,19 @@ func allDigits(s string) bool {
 	return true
 }
 
-func cleanSampleName(displayName string, dirTokens map[string]bool) string {
+func CleanSampleName(displayName string, dirTokens map[string]bool) string {
 	words := strings.Fields(displayName)
 	filtered := words[:0]
 	for _, w := range words {
-		if len(w) > 1 && !allDigits(w) && !dirTokens[strings.ToLower(w)] {
+		if len(w) > 1 && !AllDigits(w) && !dirTokens[strings.ToLower(w)] {
 			filtered = append(filtered, w)
 		}
 	}
 	return strings.Join(filtered, " ")
 }
 
-// dedupeTokens removes consecutive duplicate tokens from a hyphen-separated name.
-func dedupeTokens(name string) string {
+// DedupeTokens removes consecutive duplicate tokens from a hyphen-separated name.
+func DedupeTokens(name string) string {
 	tokens := strings.Split(name, "-")
 	deduped := tokens[:1]
 	for _, t := range tokens[1:] {
@@ -74,31 +74,31 @@ func dedupeTokens(name string) string {
 	return strings.Join(deduped, "-")
 }
 
-// deriveKitName builds a kit name from path components between topDir and kitPath.
+// DeriveKitName builds a kit name from path components between topDir and kitPath.
 // E.g. topDir="Input/ExamplePack", kitPath="Input/ExamplePack/Kit 1"
 // => "ExamplePack-1"
-func deriveKitName(topDir, kitPath string) string {
+func DeriveKitName(topDir, kitPath string) string {
 	rel, err := filepath.Rel(topDir, kitPath)
 	if err != nil {
-		return formatKitName(kitPath)
+		return FormatKitName(kitPath)
 	}
 
 	parts := strings.Split(rel, string(filepath.Separator))
 	var formatted []string
 	// Include the top-level dir name as prefix
-	formatted = append(formatted, formatKitName(topDir))
+	formatted = append(formatted, FormatKitName(topDir))
 	for _, p := range parts {
-		if f := formatKitName(p); f != "" {
+		if f := FormatKitName(p); f != "" {
 			formatted = append(formatted, f)
 		}
 	}
-	return dedupeTokens(strings.Join(formatted, "-"))
+	return DedupeTokens(strings.Join(formatted, "-"))
 }
 
-// deriveSrcTokens tokenizes all path components between topDir and kitPath (inclusive).
-func deriveSrcTokens(topDir, kitPath string) map[string]bool {
+// DeriveSrcTokens tokenizes all path components between topDir and kitPath (inclusive).
+func DeriveSrcTokens(topDir, kitPath string) map[string]bool {
 	tokens := make(map[string]bool)
-	for tok := range tokenize(filepath.Base(topDir)) {
+	for tok := range Tokenize(filepath.Base(topDir)) {
 		tokens[tok] = true
 	}
 	rel, err := filepath.Rel(topDir, kitPath)
@@ -106,14 +106,14 @@ func deriveSrcTokens(topDir, kitPath string) map[string]bool {
 		return tokens
 	}
 	for _, part := range strings.Split(rel, string(filepath.Separator)) {
-		for tok := range tokenize(part) {
+		for tok := range Tokenize(part) {
 			tokens[tok] = true
 		}
 	}
 	return tokens
 }
 
-func formatSize(bytes int64) string {
+func FormatSize(bytes int64) string {
 	switch {
 	case bytes >= 1_000_000_000:
 		return fmt.Sprintf("%.1f GB", float64(bytes)/1_000_000_000)

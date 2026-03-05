@@ -1,15 +1,13 @@
-package main
+package kit
 
 import (
 	"path/filepath"
 	"strings"
 )
 
-type SampleKind string
-
-func detectSampleKind(filename string) SampleKind {
+func DetectSampleKind(filename string, drumTypes []DrumType) SampleKind {
 	name := strings.ToLower(strings.TrimSuffix(filename, filepath.Ext(filename)))
-	for _, dt := range cfg.DrumTypes {
+	for _, dt := range drumTypes {
 		for _, token := range dt.Tokens {
 			if strings.Contains(name, token) {
 				return SampleKind(dt.Name)
@@ -19,15 +17,7 @@ func detectSampleKind(filename string) SampleKind {
 	return ""
 }
 
-type Pitch int
-
-const (
-	PitchLow Pitch = iota
-	PitchMid
-	PitchHigh
-)
-
-func detectPitch(filename string) Pitch {
+func DetectPitch(filename string) Pitch {
 	name := strings.TrimSuffix(filename, filepath.Ext(filename))
 	tokens := strings.FieldsFunc(strings.ToLower(name), func(r rune) bool {
 		return r == ' ' || r == '-' || r == '_'

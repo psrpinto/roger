@@ -1,4 +1,4 @@
-package main
+package examples
 
 import (
 	"bytes"
@@ -111,7 +111,8 @@ func createDummyPng(path string) error {
 	return os.WriteFile(path, data, 0644)
 }
 
-func createExampleDirs(inputDir string) {
+// CreateExampleDirs creates example input directories with dummy WAV files.
+func CreateExampleDirs(inputDir string) {
 	// Single group example: Input/ExamplePack/Kit 1, Kit 2
 	singleCat := filepath.Join(inputDir, "ExamplePack")
 	for _, kit := range []string{"Kit 1", "Kit 2"} {

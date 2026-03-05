@@ -1,15 +1,15 @@
-package main
+package tui
 
 import (
-	"bytes"
-	"encoding/json"
-	"encoding/xml"
 	"fmt"
 	"slices"
 	"strings"
 	"unicode/utf8"
 
 	"charm.land/lipgloss/v2"
+
+	"roger/internal/kit"
+	"roger/internal/mpc"
 )
 
 // Lipgloss styles
@@ -22,8 +22,8 @@ var (
 	styleCyan   = lipgloss.NewStyle().Foreground(lipgloss.Color("6"))
 )
 
-func padTypesMatch(padIndex int, kind SampleKind) bool {
-	return slices.Contains(cfg.PadLayout[padIndex], string(kind))
+func padTypesMatch(padIndex int, kind kit.SampleKind, padLayout [16][]string) bool {
+	return slices.Contains(padLayout[padIndex], string(kind))
 }
 
 const cellWidth = 30
@@ -66,21 +66,21 @@ func heavySeparator() string {
 	return "┣" + strings.Repeat("━", cellWidth*4) + "┫"
 }
 
-func computeLeftColWidth(p pack) int {
+func computeLeftColWidth(p kit.Pack) int {
 	w := 0
-	for _, group := range p.groups {
-		for _, kit := range group.kits {
-			n := utf8.RuneCountInString(kit.name)
+	for _, group := range p.Groups {
+		for _, k := range group.Kits {
+			n := utf8.RuneCountInString(k.Name)
 			if n > 50 {
 				n = 50
 			}
 			if n > w {
 				w = n
 			}
-			for _, s := range kit.samples {
-				n = 4 + utf8.RuneCountInString(s.cleanName)
-				if s.sampleRate > 0 {
-					n += 1 + len(fmt.Sprintf("%dms", s.frameCount*1000/s.sampleRate))
+			for _, s := range k.Samples {
+				n = 4 + utf8.RuneCountInString(s.CleanName)
+				if s.SampleRate > 0 {
+					n += 1 + len(fmt.Sprintf("%dms", s.FrameCount*1000/s.SampleRate))
 				}
 				if n > w {
 					w = n
@@ -91,11 +91,11 @@ func computeLeftColWidth(p pack) int {
 	return w + 2
 }
 
-func renderKits(p pack, leftColWidth int, padStyles [16]lipgloss.Style) string {
+func renderKits(p kit.Pack, leftColWidth int, padStyles [16]lipgloss.Style, drumTypes []kit.DrumType, padLayout [16][]string) string {
 	var b strings.Builder
 
 	gridWidth := leftColWidth + 4*cellWidth + 2
-	packName := truncateMiddle(p.name, gridWidth-4)
+	packName := truncateMiddle(p.Name, gridWidth-4)
 	titleLen := utf8.RuneCountInString(packName)
 	totalPad := gridWidth - titleLen - 2
 	leftPad := totalPad / 2
@@ -104,19 +104,19 @@ func renderKits(p pack, leftColWidth int, padStyles [16]lipgloss.Style) string {
 		strings.Repeat("━", leftPad), styleBold.Render(packName), strings.Repeat("━", rightPad))
 
 	blank := strings.Repeat(" ", leftColWidth)
-	multipleGroups := len(p.groups) > 1
+	multipleGroups := len(p.Groups) > 1
 
 	if !multipleGroups {
 		fmt.Fprintln(&b, blank+topBorder())
 	}
 
-	for gi, group := range p.groups {
+	for gi, group := range p.Groups {
 		if multipleGroups {
 			if gi > 0 {
 				fmt.Fprintln(&b, strings.Repeat("━", leftColWidth)+bottomBorder())
 			}
-			if group.name != "" {
-				groupName := truncateMiddle(group.name, gridWidth-4)
+			if group.Name != "" {
+				groupName := truncateMiddle(group.Name, gridWidth-4)
 				nameLen := utf8.RuneCountInString(groupName)
 				gTotalPad := gridWidth - nameLen - 2
 				gLeftPad := gTotalPad / 2
@@ -128,16 +128,16 @@ func renderKits(p pack, leftColWidth int, padStyles [16]lipgloss.Style) string {
 			fmt.Fprintln(&b, blank+topBorder())
 		}
 
-		for ki, kit := range group.kits {
+		for ki, k := range group.Kits {
 			if ki > 0 {
 				fmt.Fprintln(&b, strings.Repeat("━", leftColWidth)+heavySeparator())
 			}
 
 			var cleanNames [16]string
-			for i, s := range kit.samples {
-				left := fmt.Sprintf(" %2d %s", i+1, s.cleanName)
-				if s.sampleRate > 0 {
-					durationMs := s.frameCount * 1000 / s.sampleRate
+			for i, s := range k.Samples {
+				left := fmt.Sprintf(" %2d %s", i+1, s.CleanName)
+				if s.SampleRate > 0 {
+					durationMs := s.FrameCount * 1000 / s.SampleRate
 					dur := fmt.Sprintf("%dms", durationMs)
 					gap := leftColWidth - utf8.RuneCountInString(left) - utf8.RuneCountInString(dur) - 1
 					if gap < 1 {
@@ -154,11 +154,11 @@ func renderKits(p pack, leftColWidth int, padStyles [16]lipgloss.Style) string {
 				}
 			}
 
-			lines := gridLines(kit.samples, padStyles)
+			lines := gridLines(k.Samples, padStyles, drumTypes, padLayout)
 			total := len(lines)
 			for li, line := range lines {
 				if li == total-1 {
-					displayName := truncateMiddle(kit.name, 50)
+					displayName := truncateMiddle(k.Name, 50)
 					// Bold name needs padding that accounts for visible width only
 					boldName := " " + styleBold.Render(displayName)
 					fmt.Fprint(&b, padRight(boldName, leftColWidth+boldExtraWidth(displayName)))
@@ -181,13 +181,12 @@ func boldExtraWidth(s string) int {
 	return len(styleBold.Render(s)) - utf8.RuneCountInString(s)
 }
 
-func gridLines(samples [16]sample, padStyles [16]lipgloss.Style) []string {
+func gridLines(samples [16]kit.Sample, padStyles [16]lipgloss.Style, drumTypes []kit.DrumType, padLayout [16][]string) []string {
 	const innerContent = 27
-	const reset = "\033[0m"
 
-	innerTop := func(i int, s sample) string {
+	innerTop := func(i int, s kit.Sample) string {
 		c := padStyles[i]
-		label := fmt.Sprintf("%d %s", i+1, s.drumKind)
+		label := fmt.Sprintf("%d %s", i+1, s.DrumKind)
 		label = truncate(label, 25)
 		labelLen := utf8.RuneCountInString(label)
 		fill := 25 - labelLen
@@ -214,20 +213,20 @@ func gridLines(samples [16]sample, padStyles [16]lipgloss.Style) []string {
 			}
 			top.WriteString(sep + innerTop(i, samples[i]))
 
-			padded := padRight(truncate(samples[i].filename, innerContent), innerContent)
+			padded := padRight(truncate(samples[i].Filename, innerContent), innerContent)
 			var fcolor lipgloss.Style
-			if samples[i].filename == "" {
+			if samples[i].Filename == "" {
 				padded = padRight("(empty)", innerContent)
 				fcolor = styleRed
-			} else if padTypesMatch(i, detectSampleKind(samples[i].filename)) {
+			} else if padTypesMatch(i, kit.DetectSampleKind(samples[i].Filename, drumTypes), padLayout) {
 				fcolor = styleGreen
 			} else {
 				fcolor = styleYellow
 			}
 			file.WriteString(sep + padStyles[i].Render("│") + " " + fcolor.Render(padded) + padStyles[i].Render("│"))
 
-			clean.WriteString(sep + innerSide(i, samples[i].cleanName))
-			out.WriteString(sep + innerSide(i, samples[i].outputName))
+			clean.WriteString(sep + innerSide(i, samples[i].CleanName))
+			out.WriteString(sep + innerSide(i, samples[i].OutputName))
 			bot.WriteString(sep + innerBottom(i))
 		}
 		lines = append(lines, top.String()+"┃")
@@ -239,62 +238,8 @@ func gridLines(samples [16]sample, padStyles [16]lipgloss.Style) []string {
 	return lines
 }
 
-// extractPadStyles reads the 16 pad colors from the loaded programTemplate
-// and returns them as lipgloss styles with colored foregrounds.
-func extractPadStyles() [16]lipgloss.Style {
-	var styles [16]lipgloss.Style
-	for i := range styles {
-		styles[i] = lipgloss.NewStyle()
-	}
-
-	decoder := xml.NewDecoder(bytes.NewReader(programTemplate))
-	var padsJSON string
-	for {
-		tok, err := decoder.Token()
-		if err != nil {
-			break
-		}
-		se, ok := tok.(xml.StartElement)
-		if !ok || se.Name.Local != "ProgramPads-v2.10" {
-			continue
-		}
-		if err := decoder.DecodeElement(&padsJSON, &se); err != nil {
-			break
-		}
-		break
-	}
-	if padsJSON == "" {
-		return styles
-	}
-
-	var data map[string]interface{}
-	if err := json.Unmarshal([]byte(padsJSON), &data); err != nil {
-		return styles
-	}
-	programPads, ok := data["ProgramPads-v2.10"].(map[string]interface{})
-	if !ok {
-		return styles
-	}
-	pads, ok := programPads["pads"].(map[string]interface{})
-	if !ok {
-		return styles
-	}
-
-	for i := range 16 {
-		val, ok := pads[fmt.Sprintf("value%d", i)]
-		if !ok {
-			continue
-		}
-		colorInt := int(val.(float64))
-		r := (colorInt >> 16) & 0xFF
-		g := (colorInt >> 8) & 0xFF
-		b := colorInt & 0xFF
-		styles[i] = lipgloss.NewStyle().Foreground(lipgloss.Color(fmt.Sprintf("#%02x%02x%02x", r, g, b)))
-	}
-	return styles
-}
-
-func renderUsage(baseDir string) string {
+// RenderUsage renders the usage/help text for the given baseDir.
+func RenderUsage(baseDir string) string {
 	var b strings.Builder
 
 	fmt.Fprintf(&b, "%s organizes drum sample WAV files into 16-pad MPC kits.\n", styleBold.Render("roger"))
@@ -342,13 +287,13 @@ func renderLegend() string {
 	return b.String()
 }
 
-func renderWarnings(packs []pack, emptyPacks, wrongSampleCount []string) string {
+func renderWarnings(packs []kit.Pack, emptyPacks, wrongSampleCount []string) string {
 	var b strings.Builder
 
 	var missingImages []string
 	for _, p := range packs {
-		if imgPath, _ := findImage(p.dir); imgPath == "" {
-			missingImages = append(missingImages, p.name)
+		if imgPath, _ := mpc.FindImage(p.Dir); imgPath == "" {
+			missingImages = append(missingImages, p.Name)
 		}
 	}
 
@@ -376,7 +321,7 @@ func renderWarnings(packs []pack, emptyPacks, wrongSampleCount []string) string 
 	return b.String()
 }
 
-func renderGrids(packs []pack, padStyles [16]lipgloss.Style) string {
+func renderGrids(packs []kit.Pack, padStyles [16]lipgloss.Style, drumTypes []kit.DrumType, padLayout [16][]string) string {
 	var b strings.Builder
 
 	globalLeftColWidth := 0
@@ -390,7 +335,7 @@ func renderGrids(packs []pack, padStyles [16]lipgloss.Style) string {
 		if i > 0 {
 			fmt.Fprintln(&b)
 		}
-		b.WriteString(renderKits(p, globalLeftColWidth, padStyles))
+		b.WriteString(renderKits(p, globalLeftColWidth, padStyles, drumTypes, padLayout))
 	}
 
 	return b.String()

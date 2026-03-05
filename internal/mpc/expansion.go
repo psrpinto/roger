@@ -1,4 +1,4 @@
-package main
+package mpc
 
 import (
 	"bytes"
@@ -9,9 +9,10 @@ import (
 )
 
 //go:embed templates/expansion.xml
-var expansionTemplate []byte
+var ExpansionTemplate []byte
 
-type expansionInfo struct {
+// ExpansionInfo holds the metadata for an MPC expansion.
+type ExpansionInfo struct {
 	Name         string
 	Identifier   string
 	Title        string
@@ -19,15 +20,15 @@ type expansionInfo struct {
 	Description  string
 }
 
-func loadCustomExpansionTemplate(baseDir string) {
+func LoadCustomExpansionTemplate(baseDir string) {
 	path := filepath.Join(baseDir, "expansion.xml")
 	if data, err := os.ReadFile(path); err == nil {
-		expansionTemplate = data
+		ExpansionTemplate = data
 	}
 }
 
-func renderExpansionXml(info expansionInfo) (result []byte, err error) {
-	tmpl, err := template.New("t").Parse(string(expansionTemplate))
+func RenderExpansionXml(info ExpansionInfo) (result []byte, err error) {
+	tmpl, err := template.New("t").Parse(string(ExpansionTemplate))
 	if err != nil {
 		return
 	}

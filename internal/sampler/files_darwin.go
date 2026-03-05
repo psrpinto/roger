@@ -1,4 +1,4 @@
-package main
+package sampler
 
 import (
 	"fmt"
@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 )
 
-func desktopDir() string {
+func DesktopDir() string {
 	home, err := os.UserHomeDir()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: cannot determine home directory: %s\n", err)

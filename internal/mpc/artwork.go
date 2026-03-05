@@ -1,4 +1,4 @@
-package main
+package mpc
 
 import (
 	"bytes"
@@ -14,7 +14,7 @@ import (
 	"golang.org/x/image/draw"
 )
 
-func findImage(dir string) (string, string) {
+func FindImage(dir string) (string, string) {
 	imageExts := map[string]bool{".png": true, ".jpg": true, ".jpeg": true, ".bmp": true}
 	entries, err := os.ReadDir(dir)
 	if err != nil {
@@ -32,7 +32,7 @@ func findImage(dir string) (string, string) {
 	return "", ""
 }
 
-func convertCoverImage(srcPath, dstPath string) error {
+func ConvertCoverImage(srcPath, dstPath string) error {
 	f, err := os.Open(srcPath)
 	if err != nil {
 		return err
@@ -63,15 +63,15 @@ func convertCoverImage(srcPath, dstPath string) error {
 	var app0 [20]byte
 	app0[0] = 0xFF
 	app0[1] = 0xE0
-	binary.BigEndian.PutUint16(app0[2:4], 16)   // length (includes length field but not marker)
-	copy(app0[4:9], "JFIF\x00")                 // identifier
-	app0[9] = 1                                  // major version
-	app0[10] = 1                                 // minor version
-	app0[11] = 1                                 // units: dots per inch
-	binary.BigEndian.PutUint16(app0[12:14], 72)  // X density
-	binary.BigEndian.PutUint16(app0[14:16], 72)  // Y density
-	app0[16] = 0                                 // thumbnail width
-	app0[17] = 0                                 // thumbnail height
+	binary.BigEndian.PutUint16(app0[2:4], 16)  // length (includes length field but not marker)
+	copy(app0[4:9], "JFIF\x00")                // identifier
+	app0[9] = 1                                 // major version
+	app0[10] = 1                                // minor version
+	app0[11] = 1                                // units: dots per inch
+	binary.BigEndian.PutUint16(app0[12:14], 72) // X density
+	binary.BigEndian.PutUint16(app0[14:16], 72) // Y density
+	app0[16] = 0                                // thumbnail width
+	app0[17] = 0                                // thumbnail height
 	out.Write(app0[:18])
 
 	// Skip existing JFIF/EXIF APP0/APP1 markers if present
