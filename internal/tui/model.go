@@ -371,6 +371,9 @@ func (m *Model) View() tea.View {
 		s = ""
 	}
 
+	padding := lipgloss.NewStyle().PaddingLeft(2)
+	s = padding.Render(s)
+
 	if segments := m.breadcrumb(); segments != nil {
 		s = shared.RenderBreadcrumb(segments, m.width) + s
 	}

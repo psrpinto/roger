@@ -65,37 +65,37 @@ func (m *HomeModel) Update(msg tea.Msg) (tea.Cmd, shared.Transition) {
 func (m *HomeModel) View() string {
 	var b strings.Builder
 	logo := shared.Bold.Render(
-		"  _ __ ___   __ _  ___ _ __\n" +
-			"  | '__/ _ \\ / _` |/ _ \\ '__|\n" +
-			"  | | | (_) | (_| |  __/ |\n" +
-			"  |_|  \\___/ \\__, |\\___|_|\n" +
-			"             |___/")
+		"_ __ ___   __ _  ___ _ __\n" +
+			"| '__/ _ \\ / _` |/ _ \\ '__|\n" +
+			"| | | (_) | (_| |  __/ |\n" +
+			"|_|  \\___/ \\__, |\\___|_|\n" +
+			"           |___/")
 	fmt.Fprintln(&b)
 	fmt.Fprintf(&b, "%s\n", logo)
 	fmt.Fprintln(&b)
-	fmt.Fprintln(&b, "  What would you like to create?")
+	fmt.Fprintln(&b, "What would you like to create?")
 	fmt.Fprintln(&b)
 	for i, opt := range modeOptions {
 		if i == m.cursor {
-			fmt.Fprintf(&b, "  %s %s\n", shared.Cyan.Render("▸"), shared.Bold.Render(opt.label))
-			fmt.Fprintf(&b, "    %s\n", shared.Dim.Render(opt.description))
+			fmt.Fprintf(&b, "%s %s\n", shared.Cyan.Render("▸"), shared.Bold.Render(opt.label))
+			fmt.Fprintf(&b, "  %s\n", shared.Dim.Render(opt.description))
 		} else {
-			fmt.Fprintf(&b, "    %s\n", shared.Dim.Render(opt.label))
+			fmt.Fprintf(&b, "  %s\n", shared.Dim.Render(opt.label))
 			fmt.Fprintln(&b)
 		}
 	}
 	if (m.width > 0 && m.width < minWidth) || (m.height > 0 && m.height < minHeight) {
 		fmt.Fprintln(&b)
 		if m.width > 0 && m.width < minWidth {
-			fmt.Fprintf(&b, "  %s Window is too narrow (%d columns). Widen to at least %d for best results.\n",
+			fmt.Fprintf(&b, "%s Window is too narrow (%d columns). Widen to at least %d for best results.\n",
 				shared.Yellow.Render("warning:"), m.width, minWidth)
 		}
 		if m.height > 0 && m.height < minHeight {
-			fmt.Fprintf(&b, "  %s Window is too short (%d rows). Increase to at least %d for best results.\n",
+			fmt.Fprintf(&b, "%s Window is too short (%d rows). Increase to at least %d for best results.\n",
 				shared.Yellow.Render("warning:"), m.height, minHeight)
 		}
 	}
 	fmt.Fprintln(&b)
-	fmt.Fprintln(&b, shared.Dim.Render("  ↑/↓ to navigate, Enter to select, Esc to quit"))
+	fmt.Fprintln(&b, shared.Dim.Render("↑/↓ to navigate, Enter to select, Esc to quit"))
 	return b.String()
 }
