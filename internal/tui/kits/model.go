@@ -199,6 +199,10 @@ func (m *Model) advancePhase(data any) (tea.Cmd, shared.Transition) {
 	switch m.state {
 	case stateFirstRun:
 		m.firstRun = nil
+		// Re-scan in case firstRun created new directories.
+		if len(m.packArgs) == 0 {
+			m.topLevelDirs = sampler.ListSubdirs(m.kitsSrcDir)
+		}
 		m.state = stateHome
 		m.home = NewHomeModel()
 		return nil, shared.Transition{}
