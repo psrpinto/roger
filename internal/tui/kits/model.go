@@ -35,8 +35,7 @@ type Result struct {
 
 // Model is the kits orchestrator.
 type Model struct {
-	state   kitState
-	cliMode bool
+	state kitState
 
 	baseDir    string
 	kitsSrcDir string
@@ -58,14 +57,13 @@ type Model struct {
 	helpPrev kitState
 }
 
-func NewModel(baseDir, kitsSrcDir, destDir string, packArgs []string, cfg *config.Config, cliMode bool) *Model {
+func NewModel(baseDir, kitsSrcDir, destDir string, packArgs []string, cfg *config.Config) *Model {
 	m := &Model{
 		baseDir:    baseDir,
 		kitsSrcDir: kitsSrcDir,
 		destDir:    destDir,
 		packArgs:   packArgs,
 		cfg:        cfg,
-		cliMode:    cliMode,
 	}
 	m.init()
 	return m
@@ -243,10 +241,6 @@ func (m *Model) advancePhase(data any) (tea.Cmd, shared.Transition) {
 }
 
 func (m *Model) retreatPhase() (tea.Cmd, shared.Transition) {
-	if m.cliMode {
-		return nil, shared.Transition{Phase: shared.Abort}
-	}
-
 	switch m.state {
 	case stateHome, stateFirstRun:
 		return nil, shared.Transition{Phase: shared.Back}

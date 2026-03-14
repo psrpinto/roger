@@ -22,11 +22,10 @@ func (m *HomeModel) Update(msg tea.Msg) (tea.Cmd, shared.Transition) {
 		return nil, shared.Transition{Phase: shared.Back}
 	case "ctrl+c":
 		return nil, shared.Transition{Phase: shared.Abort}
-	default:
-		return nil, shared.Transition{Phase: shared.Next}
 	}
+	return nil, shared.Transition{}
 }
 
 func (m *HomeModel) View() string {
-	return shared.Bold.Render("Instruments") + " — Coming soon.\n\nPress any key to exit."
+	return shared.Bold.Render("Instruments") + " — Coming soon."
 }

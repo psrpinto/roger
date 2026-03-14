@@ -20,8 +20,7 @@ const (
 
 // Model is the instruments orchestrator.
 type Model struct {
-	state   instState
-	cliMode bool
+	state instState
 
 	baseDir    string
 	instSrcDir string
@@ -33,12 +32,11 @@ type Model struct {
 	helpPrev instState
 }
 
-func NewModel(baseDir, instSrcDir string, packArgs []string, cliMode bool) *Model {
+func NewModel(baseDir, instSrcDir string, packArgs []string) *Model {
 	m := &Model{
 		baseDir:    baseDir,
 		instSrcDir: instSrcDir,
 		packArgs:   packArgs,
-		cliMode:    cliMode,
 	}
 	m.init()
 	return m
@@ -133,23 +131,15 @@ func (m *Model) Update(msg tea.Msg) (tea.Cmd, shared.Transition) {
 }
 
 func (m *Model) advancePhase() (tea.Cmd, shared.Transition) {
-	switch m.state {
-	case stateFirstRun:
+	if m.state == stateFirstRun {
 		m.firstRun = nil
 		m.state = stateHome
 		m.home = NewHomeModel()
-		return nil, shared.Transition{}
-	case stateHome:
-		return nil, shared.Transition{Phase: shared.Next}
 	}
 	return nil, shared.Transition{}
 }
 
 func (m *Model) retreatPhase() (tea.Cmd, shared.Transition) {
-	if m.cliMode {
-		return nil, shared.Transition{Phase: shared.Abort}
-	}
-
 	switch m.state {
 	case stateFirstRun:
 		// Go to instruments home (not root home), matching original behavior.

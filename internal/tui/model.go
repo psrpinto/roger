@@ -93,12 +93,12 @@ func NewModel(baseDir, kitsSrcDir, instSrcDir, destDir string, cfg *config.Confi
 }
 
 func (m *Model) initKits(packArgs []string) {
-	m.activeModeModel = kits.NewModel(m.baseDir, m.kitsSrcDir, m.destDir, packArgs, m.cfg, m.cliMode)
+	m.activeModeModel = kits.NewModel(m.baseDir, m.kitsSrcDir, m.destDir, packArgs, m.cfg)
 	m.state = stateModeActive
 }
 
 func (m *Model) initInstruments(packArgs []string) {
-	m.activeModeModel = instruments.NewModel(m.baseDir, m.instSrcDir, packArgs, m.cliMode)
+	m.activeModeModel = instruments.NewModel(m.baseDir, m.instSrcDir, packArgs)
 	m.state = stateModeActive
 }
 
