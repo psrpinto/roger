@@ -1,11 +1,17 @@
 package tui
 
 import (
+	"fmt"
+	"os"
+	"path/filepath"
+
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 
 	"roger/internal/config"
 	"roger/internal/kit"
+	"roger/internal/mpc"
+	"roger/internal/sampler"
 	"roger/internal/tui/instruments"
 	"roger/internal/tui/kits"
 	"roger/internal/tui/shared"
@@ -56,12 +62,9 @@ type Model struct {
 	height     int
 
 	// kits-specific state
-	kitsSetupFn  kits.SetupFunc
+	packArgs     []string
 	topLevelDirs []string
 	padStyles    [16]lipgloss.Style
-
-	// instruments-specific state
-	instrumentsSetupFn instruments.SetupFunc
 
 	// sub-models
 	home                *HomeModel
@@ -84,17 +87,16 @@ type Model struct {
 	Aborted     bool
 }
 
-func NewModel(baseDir, kitsSrcDir, instSrcDir, destDir string, cfg *config.Config, mode Mode, kitsSetupFn kits.SetupFunc, instrumentsSetupFn instruments.SetupFunc) *Model {
+func NewModel(baseDir, kitsSrcDir, instSrcDir, destDir string, cfg *config.Config, mode Mode, packArgs []string) *Model {
 	m := &Model{
-		mode:               mode,
-		cliMode:            mode != "",
-		cfg:                cfg,
-		baseDir:            baseDir,
-		kitsSrcDir:         kitsSrcDir,
-		instSrcDir:         instSrcDir,
-		destDir:            destDir,
-		kitsSetupFn:        kitsSetupFn,
-		instrumentsSetupFn: instrumentsSetupFn,
+		mode:       mode,
+		cliMode:    mode != "",
+		cfg:        cfg,
+		baseDir:    baseDir,
+		kitsSrcDir: kitsSrcDir,
+		instSrcDir: instSrcDir,
+		destDir:    destDir,
+		packArgs:   packArgs,
 	}
 
 	switch mode {
@@ -111,10 +113,29 @@ func NewModel(baseDir, kitsSrcDir, instSrcDir, destDir string, cfg *config.Confi
 }
 
 func (m *Model) initKits() {
-	ks := m.kitsSetupFn()
-	m.topLevelDirs = ks.TopLevelDirs
-	m.padStyles = ks.PadStyles
-	if ks.IsFirstRun {
+	if err := os.MkdirAll(m.kitsSrcDir, 0o755); err != nil {
+		fmt.Fprintf(os.Stderr, "error: creating directory %s: %s\n", m.kitsSrcDir, err)
+		os.Exit(1)
+	}
+
+	templatePath := filepath.Join(m.baseDir, "kit.xpm")
+	if _, err := os.Stat(templatePath); os.IsNotExist(err) {
+		os.WriteFile(templatePath, mpc.ProgramTemplate, 0o644)
+	}
+	expansionPath := filepath.Join(m.baseDir, "expansion.xml")
+	if _, err := os.Stat(expansionPath); os.IsNotExist(err) {
+		os.WriteFile(expansionPath, mpc.ExpansionTemplate, 0o644)
+	}
+	mpc.LoadCustomTemplate(m.baseDir)
+	mpc.LoadCustomExpansionTemplate(m.baseDir)
+
+	m.topLevelDirs = m.packArgs
+	if len(m.topLevelDirs) == 0 {
+		m.topLevelDirs = sampler.ListSubdirs(m.kitsSrcDir)
+	}
+	m.padStyles = mpc.ExtractPadStyles()
+
+	if len(m.packArgs) == 0 && len(m.topLevelDirs) == 0 {
 		m.state = stateKitsFirstRun
 		m.kitsFirstRun = kits.NewFirstRunModel(m.baseDir, m.kitsSrcDir)
 	} else {
@@ -124,8 +145,17 @@ func (m *Model) initKits() {
 }
 
 func (m *Model) initInstruments() {
-	is := m.instrumentsSetupFn()
-	if is.IsFirstRun {
+	if err := os.MkdirAll(m.instSrcDir, 0o755); err != nil {
+		fmt.Fprintf(os.Stderr, "error: creating directory %s: %s\n", m.instSrcDir, err)
+		os.Exit(1)
+	}
+
+	topLevelDirs := m.packArgs
+	if len(topLevelDirs) == 0 {
+		topLevelDirs = sampler.ListSubdirs(m.instSrcDir)
+	}
+
+	if len(m.packArgs) == 0 && len(topLevelDirs) == 0 {
 		m.state = stateInstrumentsFirstRun
 		m.instrumentsFirstRun = instruments.NewFirstRunModel(m.baseDir, m.instSrcDir)
 	} else {

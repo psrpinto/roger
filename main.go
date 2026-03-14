@@ -10,8 +10,6 @@ import (
 	"roger/internal/config"
 	"roger/internal/sampler"
 	"roger/internal/tui"
-	"roger/internal/tui/instruments"
-	"roger/internal/tui/kits"
 )
 
 func main() {
@@ -71,10 +69,7 @@ func main() {
 		}
 	}
 
-	m := tui.NewModel(baseDir, kitsSrcDir, instSrcDir, destDir, cfg, mode,
-		kits.NewSetupFunc(baseDir, kitsSrcDir, packArgs),
-		instruments.NewSetupFunc(instSrcDir, packArgs),
-	)
+	m := tui.NewModel(baseDir, kitsSrcDir, instSrcDir, destDir, cfg, mode, packArgs)
 	p := tea.NewProgram(m)
 	finalModel, err := p.Run()
 	if err != nil {
