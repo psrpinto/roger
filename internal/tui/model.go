@@ -22,7 +22,7 @@ const (
 type appState int
 
 const (
-	stateModeSelect appState = iota
+	stateHome appState = iota
 	stateKitsFirstRun
 	stateKitsScanning
 	stateKitsPreview
@@ -63,7 +63,7 @@ type Model struct {
 	instrumentsSetupFn instruments.SetupFunc
 
 	// sub-models
-	modeSelect          *ModeSelectModel
+	home          *HomeModel
 	kitsFirstRun        *kits.FirstRunModel
 	kitsScan            *kits.ScanModel
 	kitsPreview         *kits.PreviewModel
@@ -101,8 +101,8 @@ func NewModel(baseDir, kitsSrcDir, instSrcDir, destDir string, cfg *config.Confi
 	case ModeInstruments:
 		m.initInstruments()
 	default:
-		m.state = stateModeSelect
-		m.modeSelect = NewModeSelectModel()
+		m.state = stateHome
+		m.home = NewHomeModel()
 	}
 
 	return m
@@ -155,7 +155,7 @@ func (m *Model) newHelpForMode() subModel {
 // canShowHelp returns true for interactive states where help makes sense.
 func (m *Model) canShowHelp() bool {
 	switch m.state {
-	case stateModeSelect, stateKitsFirstRun, stateKitsPreview, stateInstrumentsFirstRun, stateInstruments:
+	case stateHome, stateKitsFirstRun, stateKitsPreview, stateInstrumentsFirstRun, stateInstruments:
 		return true
 	}
 	return false
@@ -166,8 +166,8 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
-		if m.modeSelect != nil {
-			m.modeSelect.Resize(msg.Width, msg.Height)
+		if m.home != nil {
+			m.home.Resize(msg.Width, msg.Height)
 		}
 		if m.kitsPreview != nil {
 			m.kitsPreview.Resize(msg.Width, msg.Height-breadcrumbHeight)
@@ -205,8 +205,8 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var tr shared.Transition
 
 	switch m.state {
-	case stateModeSelect:
-		cmd, tr = m.modeSelect.Update(msg)
+	case stateHome:
+		cmd, tr = m.home.Update(msg)
 	case stateKitsFirstRun:
 		cmd, tr = m.kitsFirstRun.Update(msg)
 	case stateKitsScanning:
@@ -236,7 +236,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m *Model) advancePhase(data any) (tea.Model, tea.Cmd) {
 	switch m.state {
-	case stateModeSelect:
+	case stateHome:
 		m.mode = data.(Mode)
 		switch m.mode {
 		case ModeKits:
@@ -304,14 +304,14 @@ func (m *Model) retreatPhase() (tea.Model, tea.Cmd) {
 		m.kitsFirstRun = nil
 		m.kitsScan = nil
 		m.kitsPreview = nil
-		m.state = stateModeSelect
-		m.modeSelect = NewModeSelectModel()
+		m.state = stateHome
+		m.home = NewHomeModel()
 		return m, nil
 	case stateInstrumentsFirstRun, stateInstruments:
 		m.instrumentsFirstRun = nil
 		m.instrumentsModel = nil
-		m.state = stateModeSelect
-		m.modeSelect = NewModeSelectModel()
+		m.state = stateHome
+		m.home = NewHomeModel()
 		return m, nil
 	}
 
@@ -341,7 +341,7 @@ func (m *Model) breadcrumb() []string {
 		default:
 			return []string{"roger", "Help"}
 		}
-	case stateModeSelect:
+	case stateHome:
 		return []string{"roger"}
 	default:
 		return nil
@@ -351,8 +351,8 @@ func (m *Model) breadcrumb() []string {
 func (m *Model) View() tea.View {
 	var s string
 	switch m.state {
-	case stateModeSelect:
-		s = m.modeSelect.View()
+	case stateHome:
+		s = m.home.View()
 	case stateKitsFirstRun:
 		s = m.kitsFirstRun.View()
 	case stateKitsScanning:
