@@ -135,6 +135,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
+		if m.modeSelect != nil {
+			m.modeSelect.width = msg.Width
+			m.modeSelect.height = msg.Height
+		}
 		if m.kitsPreview != nil {
 			m.kitsPreview.Resize(msg.Width, msg.Height-breadcrumbHeight)
 		}

@@ -20,8 +20,15 @@ var modeOptions = []modeOption{
 	{"Instruments", "Create Keygroup programs", ModeInstruments},
 }
 
+const (
+	minWidth  = 140
+	minHeight = 40
+)
+
 type modeSelectModel struct {
 	cursor int
+	width  int
+	height int
 }
 
 func newModeSelectModel() *modeSelectModel {
@@ -70,6 +77,17 @@ func (m *modeSelectModel) view() string {
 		} else {
 			fmt.Fprintf(&b, "    %s\n", shared.Dim.Render(opt.label))
 			fmt.Fprintln(&b)
+		}
+	}
+	if (m.width > 0 && m.width < minWidth) || (m.height > 0 && m.height < minHeight) {
+		fmt.Fprintln(&b)
+		if m.width > 0 && m.width < minWidth {
+			fmt.Fprintf(&b, "  %s Window is too narrow (%d columns). Widen to at least %d for best results.\n",
+				shared.Yellow.Render("warning:"), m.width, minWidth)
+		}
+		if m.height > 0 && m.height < minHeight {
+			fmt.Fprintf(&b, "  %s Window is too short (%d rows). Increase to at least %d for best results.\n",
+				shared.Yellow.Render("warning:"), m.height, minHeight)
 		}
 	}
 	fmt.Fprintln(&b)
