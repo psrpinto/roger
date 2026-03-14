@@ -43,22 +43,19 @@ func (m *PreviewModel) Resize(width, height int) {
 }
 
 func (m *PreviewModel) Update(msg tea.Msg) (tea.Cmd, shared.Transition) {
-	kp, ok := msg.(tea.KeyPressMsg)
-	if !ok {
-		return nil, shared.Transition{}
+	if kp, ok := msg.(tea.KeyPressMsg); ok {
+		switch kp.String() {
+		case "y", "Y", "enter":
+			return nil, shared.Transition{Phase: shared.Next, Data: m.packs}
+		case "esc":
+			return nil, shared.Transition{Phase: shared.Back}
+		case "n", "N", "q", "ctrl+c":
+			return nil, shared.Transition{Phase: shared.Abort}
+		}
 	}
-	switch kp.String() {
-	case "y", "Y", "enter":
-		return nil, shared.Transition{Phase: shared.Next, Data: m.packs}
-	case "esc":
-		return nil, shared.Transition{Phase: shared.Back}
-	case "n", "N", "q", "ctrl+c":
-		return nil, shared.Transition{Phase: shared.Abort}
-	default:
-		var cmd tea.Cmd
-		m.viewport, cmd = m.viewport.Update(msg)
-		return cmd, shared.Transition{}
-	}
+	var cmd tea.Cmd
+	m.viewport, cmd = m.viewport.Update(msg)
+	return cmd, shared.Transition{}
 }
 
 func (m *PreviewModel) View() string {
