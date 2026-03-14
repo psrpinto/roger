@@ -17,6 +17,9 @@ type Transition struct {
 	Data  any
 }
 
+// BreadcrumbHeight is the number of lines occupied by the breadcrumb bar.
+const BreadcrumbHeight = 3
+
 // ErrMsg is sent through tea.Msg when a sub-model encounters an error.
 type ErrMsg struct {
 	Err error

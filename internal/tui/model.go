@@ -1,17 +1,10 @@
 package tui
 
 import (
-	"fmt"
-	"os"
-	"path/filepath"
-
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 
 	"roger/internal/config"
-	"roger/internal/kit"
-	"roger/internal/mpc"
-	"roger/internal/sampler"
 	"roger/internal/tui/instruments"
 	"roger/internal/tui/kits"
 	"roger/internal/tui/shared"
@@ -29,31 +22,31 @@ type appState int
 
 const (
 	stateHome appState = iota
-	stateKitsHome
-	stateKitsFirstRun
-	stateKitsScanning
-	stateKitsPreview
-	stateKitsGenerating
-	stateInstrumentsHome
-	stateInstrumentsFirstRun
+	stateModeActive
 	stateHelp
 	stateDone
 )
 
-// subModel is implemented by all sub-models (help, first-run, etc.).
+// modeModel is implemented by per-mode orchestrators.
+type modeModel interface {
+	Init() tea.Cmd
+	Update(tea.Msg) (tea.Cmd, shared.Transition)
+	View() string
+	Breadcrumb() []string
+}
+
+// subModel is implemented by sub-models used directly by the root (e.g. help).
 type subModel interface {
 	Update(tea.Msg) (tea.Cmd, shared.Transition)
 	View() string
 }
 
-const breadcrumbHeight = 3
-
-// Model is the thin orchestrator.
+// Model is the thin root orchestrator.
 type Model struct {
-	state      appState
-	mode       Mode
-	cliMode    bool // true if mode was passed via CLI
-	cfg        *config.Config
+	state   appState
+	mode    Mode
+	cliMode bool
+	cfg     *config.Config
 	baseDir    string
 	kitsSrcDir string
 	instSrcDir string
@@ -61,22 +54,10 @@ type Model struct {
 	width      int
 	height     int
 
-	// kits-specific state
-	packArgs     []string
-	topLevelDirs []string
-	padStyles    [16]lipgloss.Style
+	home            *HomeModel
+	activeModeModel modeModel
 
-	// sub-models
-	home                *HomeModel
-	kitsHome            *kits.HomeModel
-	kitsFirstRun        *kits.FirstRunModel
-	kitsScan            *kits.ScanModel
-	kitsPreview         *kits.PreviewModel
-	kitsGen             *kits.GenModel
-	instrumentsFirstRun *instruments.FirstRunModel
-	instrumentsHome    *instruments.HomeModel
-
-	// help
+	// help is used only for the root home screen help.
 	help     subModel
 	helpPrev appState
 
@@ -96,14 +77,13 @@ func NewModel(baseDir, kitsSrcDir, instSrcDir, destDir string, cfg *config.Confi
 		kitsSrcDir: kitsSrcDir,
 		instSrcDir: instSrcDir,
 		destDir:    destDir,
-		packArgs:   packArgs,
 	}
 
 	switch mode {
 	case ModeKits:
-		m.initKits()
+		m.initKits(packArgs)
 	case ModeInstruments:
-		m.initInstruments()
+		m.initInstruments(packArgs)
 	default:
 		m.state = stateHome
 		m.home = NewHomeModel()
@@ -112,105 +92,41 @@ func NewModel(baseDir, kitsSrcDir, instSrcDir, destDir string, cfg *config.Confi
 	return m
 }
 
-func (m *Model) initKits() {
-	if err := os.MkdirAll(m.kitsSrcDir, 0o755); err != nil {
-		fmt.Fprintf(os.Stderr, "error: creating directory %s: %s\n", m.kitsSrcDir, err)
-		os.Exit(1)
-	}
-
-	templatePath := filepath.Join(m.baseDir, "kit.xpm")
-	if _, err := os.Stat(templatePath); os.IsNotExist(err) {
-		os.WriteFile(templatePath, mpc.ProgramTemplate, 0o644)
-	}
-	expansionPath := filepath.Join(m.baseDir, "expansion.xml")
-	if _, err := os.Stat(expansionPath); os.IsNotExist(err) {
-		os.WriteFile(expansionPath, mpc.ExpansionTemplate, 0o644)
-	}
-	mpc.LoadCustomTemplate(m.baseDir)
-	mpc.LoadCustomExpansionTemplate(m.baseDir)
-
-	m.topLevelDirs = m.packArgs
-	if len(m.topLevelDirs) == 0 {
-		m.topLevelDirs = sampler.ListSubdirs(m.kitsSrcDir)
-	}
-	m.padStyles = mpc.ExtractPadStyles()
-
-	if len(m.packArgs) == 0 && len(m.topLevelDirs) == 0 {
-		m.state = stateKitsFirstRun
-		m.kitsFirstRun = kits.NewFirstRunModel(m.baseDir, m.kitsSrcDir)
-	} else {
-		m.state = stateKitsHome
-		m.kitsHome = kits.NewHomeModel()
-	}
+func (m *Model) initKits(packArgs []string) {
+	m.activeModeModel = kits.NewModel(m.baseDir, m.kitsSrcDir, m.destDir, packArgs, m.cfg, m.cliMode)
+	m.state = stateModeActive
 }
 
-func (m *Model) initInstruments() {
-	if err := os.MkdirAll(m.instSrcDir, 0o755); err != nil {
-		fmt.Fprintf(os.Stderr, "error: creating directory %s: %s\n", m.instSrcDir, err)
-		os.Exit(1)
-	}
-
-	topLevelDirs := m.packArgs
-	if len(topLevelDirs) == 0 {
-		topLevelDirs = sampler.ListSubdirs(m.instSrcDir)
-	}
-
-	if len(m.packArgs) == 0 && len(topLevelDirs) == 0 {
-		m.state = stateInstrumentsFirstRun
-		m.instrumentsFirstRun = instruments.NewFirstRunModel(m.baseDir, m.instSrcDir)
-	} else {
-		m.state = stateInstrumentsHome
-		m.instrumentsHome = instruments.NewHomeModel()
-	}
+func (m *Model) initInstruments(packArgs []string) {
+	m.activeModeModel = instruments.NewModel(m.baseDir, m.instSrcDir, packArgs, m.cliMode)
+	m.state = stateModeActive
 }
 
 func (m *Model) Init() tea.Cmd {
-	switch m.state {
-	case stateKitsScanning:
-		return m.kitsScan.Init()
+	if m.state == stateModeActive && m.activeModeModel != nil {
+		return m.activeModeModel.Init()
 	}
 	return nil
 }
 
-// newHelpForMode returns the help model for the current mode.
-func (m *Model) newHelpForMode() subModel {
-	switch m.mode {
-	case ModeKits:
-		return kits.NewHelpModel(m.baseDir)
-	case ModeInstruments:
-		return instruments.NewHelpModel(m.baseDir)
-	default:
-		return NewHelpModel(m.baseDir)
-	}
-}
-
-// canShowHelp returns true for interactive states where help makes sense.
-func (m *Model) canShowHelp() bool {
-	switch m.state {
-	case stateHome, stateKitsHome, stateKitsFirstRun, stateKitsPreview, stateInstrumentsFirstRun, stateInstrumentsHome:
-		return true
-	}
-	return false
-}
-
 func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	switch msg := msg.(type) {
-	case tea.WindowSizeMsg:
-		m.width = msg.Width
-		m.height = msg.Height
+	if ws, ok := msg.(tea.WindowSizeMsg); ok {
+		m.width = ws.Width
+		m.height = ws.Height
 		if m.home != nil {
-			m.home.Resize(msg.Width, msg.Height)
+			m.home.Resize(ws.Width, ws.Height)
 		}
-		if m.kitsPreview != nil {
-			m.kitsPreview.Resize(msg.Width, msg.Height-breadcrumbHeight)
+		if m.activeModeModel != nil {
+			m.activeModeModel.Update(ws)
 		}
 		return m, nil
-	case shared.ErrMsg:
+	}
+
+	if _, ok := msg.(shared.ErrMsg); ok {
 		m.state = stateDone
 		return m, tea.Quit
 	}
 
-	// Handle help state
 	if m.state == stateHelp {
 		cmd, tr := m.help.Update(msg)
 		switch tr.Phase {
@@ -225,145 +141,54 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, cmd
 	}
 
-	// Intercept "?" for help in interactive states
-	if kp, ok := msg.(tea.KeyPressMsg); ok && kp.String() == "?" && m.canShowHelp() {
-		m.help = m.newHelpForMode()
-		m.helpPrev = m.state
-		m.state = stateHelp
-		return m, nil
-	}
-
-	var cmd tea.Cmd
-	var tr shared.Transition
-
-	switch m.state {
-	case stateHome:
-		cmd, tr = m.home.Update(msg)
-	case stateKitsHome:
-		cmd, tr = m.kitsHome.Update(msg)
-	case stateKitsFirstRun:
-		cmd, tr = m.kitsFirstRun.Update(msg)
-	case stateKitsScanning:
-		cmd, tr = m.kitsScan.Update(msg)
-	case stateKitsPreview:
-		cmd, tr = m.kitsPreview.Update(msg)
-	case stateKitsGenerating:
-		cmd, tr = m.kitsGen.Update(msg)
-	case stateInstrumentsFirstRun:
-		cmd, tr = m.instrumentsFirstRun.Update(msg)
-	case stateInstrumentsHome:
-		cmd, tr = m.instrumentsHome.Update(msg)
-	}
-
-	switch tr.Phase {
-	case shared.Abort:
-		m.Aborted = true
-		return m, tea.Quit
-	case shared.Back:
-		return m.retreatPhase()
-	case shared.Next:
-		return m.advancePhase(tr.Data)
-	}
-
-	return m, cmd
-}
-
-func (m *Model) advancePhase(data any) (tea.Model, tea.Cmd) {
-	switch m.state {
-	case stateHome:
-		m.mode = data.(Mode)
-		switch m.mode {
-		case ModeKits:
-			m.initKits()
-			if m.state == stateKitsScanning {
-				return m, m.kitsScan.Init()
-			}
-			return m, nil
-		case ModeInstruments:
-			m.initInstruments()
+	if m.state == stateHome {
+		if kp, ok := msg.(tea.KeyPressMsg); ok && kp.String() == "?" {
+			m.help = NewHelpModel(m.baseDir)
+			m.helpPrev = stateHome
+			m.state = stateHelp
 			return m, nil
 		}
-		return m, nil
 
-	case stateKitsHome:
-		m.state = stateKitsScanning
-		m.kitsScan = kits.NewScanModel(m.topLevelDirs, m.kitsSrcDir, m.cfg)
-		return m, m.kitsScan.Init()
+		cmd, tr := m.home.Update(msg)
+		switch tr.Phase {
+		case shared.Abort:
+			m.Aborted = true
+			return m, tea.Quit
+		case shared.Next:
+			selectedMode := tr.Data.(Mode)
+			m.mode = selectedMode
+			switch selectedMode {
+			case ModeKits:
+				m.initKits(nil)
+			case ModeInstruments:
+				m.initInstruments(nil)
+			}
+			return m, m.activeModeModel.Init()
+		}
+		return m, cmd
+	}
 
-	case stateKitsFirstRun:
-		m.state = stateKitsHome
-		m.kitsHome = kits.NewHomeModel()
-		return m, nil
-
-	case stateKitsScanning:
-		d := data.(kits.ScanDoneMsg)
-		if len(d.Packs) == 0 {
+	if m.state == stateModeActive {
+		cmd, tr := m.activeModeModel.Update(msg)
+		switch tr.Phase {
+		case shared.Abort:
+			m.Aborted = true
+			return m, tea.Quit
+		case shared.Back:
+			m.activeModeModel = nil
+			m.state = stateHome
+			m.home = NewHomeModel()
+			return m, nil
+		case shared.Next:
+			if r, ok := tr.Data.(kits.Result); ok {
+				m.KitCount = r.KitCount
+				m.SampleCount = r.SampleCount
+				m.TotalSize = r.TotalSize
+			}
 			m.state = stateDone
 			return m, tea.Quit
 		}
-		m.state = stateKitsPreview
-		m.kitsPreview = kits.NewPreviewModel(d.Packs, d.EmptyPacks, d.WrongSampleCount, m.padStyles, m.cfg, m.width, m.height-breadcrumbHeight)
-		return m, nil
-
-	case stateKitsPreview:
-		packs := data.([]kit.Pack)
-		m.state = stateKitsGenerating
-		m.kitsGen = kits.NewGenModel(packs, m.destDir, m.cfg.PadLayout)
-		return m, m.kitsGen.Init()
-
-	case stateKitsGenerating:
-		d := data.(kits.GenDoneMsg)
-		m.KitCount = d.KitCount
-		m.SampleCount = d.SampleCount
-		m.TotalSize = d.TotalSize
-		m.state = stateDone
-		return m, tea.Quit
-
-	case stateInstrumentsHome:
-		m.state = stateDone
-		return m, tea.Quit
-
-	case stateInstrumentsFirstRun:
-		m.state = stateInstrumentsHome
-		m.instrumentsHome = instruments.NewHomeModel()
-		return m, nil
-	}
-
-	return m, nil
-}
-
-func (m *Model) retreatPhase() (tea.Model, tea.Cmd) {
-	if m.cliMode {
-		m.Aborted = true
-		return m, tea.Quit
-	}
-
-	switch m.state {
-	case stateKitsHome:
-		m.kitsHome = nil
-		m.state = stateHome
-		m.home = NewHomeModel()
-		return m, nil
-	case stateKitsFirstRun:
-		m.kitsFirstRun = nil
-		m.state = stateHome
-		m.home = NewHomeModel()
-		return m, nil
-	case stateKitsPreview:
-		m.kitsPreview = nil
-		m.state = stateKitsHome
-		m.kitsHome = kits.NewHomeModel()
-		return m, nil
-	case stateInstrumentsHome:
-		m.instrumentsHome = nil
-		m.state = stateHome
-		m.home = NewHomeModel()
-		return m, nil
-	case stateInstrumentsFirstRun:
-		m.instrumentsFirstRun = nil
-		m.state = stateInstrumentsHome
-		m.instrumentsHome = instruments.NewHomeModel()
-		return m, nil
+		return m, cmd
 	}
 
 	return m, nil
@@ -371,34 +196,14 @@ func (m *Model) retreatPhase() (tea.Model, tea.Cmd) {
 
 func (m *Model) breadcrumb() []string {
 	switch m.state {
-	case stateKitsHome:
-		return []string{"roger", "Kits"}
-	case stateKitsFirstRun:
-		return []string{"roger", "Kits", "Setup"}
-	case stateKitsScanning:
-		return []string{"roger", "Kits", "Scanning"}
-	case stateKitsPreview:
-		return []string{"roger", "Kits", "Preview"}
-	case stateKitsGenerating:
-		return []string{"roger", "Kits", "Generating"}
-	case stateInstrumentsFirstRun:
-		return []string{"roger", "Instruments", "Setup"}
-	case stateInstrumentsHome:
-		return []string{"roger", "Instruments"}
-	case stateHelp:
-		switch m.mode {
-		case ModeKits:
-			return []string{"roger", "Kits", "Help"}
-		case ModeInstruments:
-			return []string{"roger", "Instruments", "Help"}
-		default:
-			return []string{"roger", "Help"}
-		}
 	case stateHome:
 		return []string{"roger"}
-	default:
-		return nil
+	case stateModeActive:
+		return m.activeModeModel.Breadcrumb()
+	case stateHelp:
+		return []string{"roger", "Help"}
 	}
+	return nil
 }
 
 func (m *Model) View() tea.View {
@@ -406,20 +211,8 @@ func (m *Model) View() tea.View {
 	switch m.state {
 	case stateHome:
 		s = m.home.View()
-	case stateKitsHome:
-		s = m.kitsHome.View()
-	case stateKitsFirstRun:
-		s = m.kitsFirstRun.View()
-	case stateKitsScanning:
-		s = m.kitsScan.View()
-	case stateKitsPreview:
-		s = m.kitsPreview.View()
-	case stateKitsGenerating:
-		s = m.kitsGen.View()
-	case stateInstrumentsFirstRun:
-		s = m.instrumentsFirstRun.View()
-	case stateInstrumentsHome:
-		s = m.instrumentsHome.View()
+	case stateModeActive:
+		s = m.activeModeModel.View()
 	case stateHelp:
 		s = m.help.View()
 	case stateDone:

@@ -1,0 +1,178 @@
+package instruments
+
+import (
+	"fmt"
+	"os"
+
+	tea "charm.land/bubbletea/v2"
+
+	"roger/internal/sampler"
+	"roger/internal/tui/shared"
+)
+
+type instState int
+
+const (
+	stateHome instState = iota
+	stateFirstRun
+	stateHelp
+)
+
+// Model is the instruments orchestrator.
+type Model struct {
+	state   instState
+	cliMode bool
+
+	baseDir    string
+	instSrcDir string
+	packArgs   []string
+
+	home     *HomeModel
+	firstRun *FirstRunModel
+	help     *HelpModel
+	helpPrev instState
+}
+
+func NewModel(baseDir, instSrcDir string, packArgs []string, cliMode bool) *Model {
+	m := &Model{
+		baseDir:    baseDir,
+		instSrcDir: instSrcDir,
+		packArgs:   packArgs,
+		cliMode:    cliMode,
+	}
+	m.init()
+	return m
+}
+
+func (m *Model) init() {
+	if err := os.MkdirAll(m.instSrcDir, 0o755); err != nil {
+		fmt.Fprintf(os.Stderr, "error: creating directory %s: %s\n", m.instSrcDir, err)
+		os.Exit(1)
+	}
+
+	topLevelDirs := m.packArgs
+	if len(topLevelDirs) == 0 {
+		topLevelDirs = sampler.ListSubdirs(m.instSrcDir)
+	}
+
+	if len(m.packArgs) == 0 && len(topLevelDirs) == 0 {
+		m.state = stateFirstRun
+		m.firstRun = NewFirstRunModel(m.baseDir, m.instSrcDir)
+	} else {
+		m.state = stateHome
+		m.home = NewHomeModel()
+	}
+}
+
+func (m *Model) Init() tea.Cmd {
+	return nil
+}
+
+func (m *Model) canShowHelp() bool {
+	switch m.state {
+	case stateHome, stateFirstRun:
+		return true
+	}
+	return false
+}
+
+// Breadcrumb returns the breadcrumb path segments for the current state.
+func (m *Model) Breadcrumb() []string {
+	switch m.state {
+	case stateHome:
+		return []string{"roger", "Instruments"}
+	case stateFirstRun:
+		return []string{"roger", "Instruments", "Setup"}
+	case stateHelp:
+		return []string{"roger", "Instruments", "Help"}
+	}
+	return nil
+}
+
+func (m *Model) Update(msg tea.Msg) (tea.Cmd, shared.Transition) {
+	if m.state == stateHelp {
+		cmd, tr := m.help.Update(msg)
+		switch tr.Phase {
+		case shared.Abort:
+			return nil, shared.Transition{Phase: shared.Abort}
+		case shared.Back:
+			m.state = m.helpPrev
+			m.help = nil
+			return nil, shared.Transition{}
+		}
+		return cmd, shared.Transition{}
+	}
+
+	if kp, ok := msg.(tea.KeyPressMsg); ok && kp.String() == "?" && m.canShowHelp() {
+		m.help = NewHelpModel(m.baseDir)
+		m.helpPrev = m.state
+		m.state = stateHelp
+		return nil, shared.Transition{}
+	}
+
+	var cmd tea.Cmd
+	var tr shared.Transition
+
+	switch m.state {
+	case stateHome:
+		cmd, tr = m.home.Update(msg)
+	case stateFirstRun:
+		cmd, tr = m.firstRun.Update(msg)
+	}
+
+	switch tr.Phase {
+	case shared.Abort:
+		return nil, shared.Transition{Phase: shared.Abort}
+	case shared.Back:
+		return m.retreatPhase()
+	case shared.Next:
+		return m.advancePhase()
+	}
+
+	return cmd, shared.Transition{}
+}
+
+func (m *Model) advancePhase() (tea.Cmd, shared.Transition) {
+	switch m.state {
+	case stateFirstRun:
+		m.firstRun = nil
+		m.state = stateHome
+		m.home = NewHomeModel()
+		return nil, shared.Transition{}
+	case stateHome:
+		return nil, shared.Transition{Phase: shared.Next}
+	}
+	return nil, shared.Transition{}
+}
+
+func (m *Model) retreatPhase() (tea.Cmd, shared.Transition) {
+	if m.cliMode {
+		return nil, shared.Transition{Phase: shared.Abort}
+	}
+
+	switch m.state {
+	case stateFirstRun:
+		// Go to instruments home (not root home), matching original behavior.
+		m.firstRun = nil
+		m.state = stateHome
+		m.home = NewHomeModel()
+		return nil, shared.Transition{}
+	case stateHome:
+		return nil, shared.Transition{Phase: shared.Back}
+	}
+
+	return nil, shared.Transition{}
+}
+
+// View returns the content string for the current state (no breadcrumb, no padding).
+func (m *Model) View() string {
+	switch m.state {
+	case stateHome:
+		return m.home.View()
+	case stateFirstRun:
+		return m.firstRun.View()
+	case stateHelp:
+		return m.help.View()
+	}
+	return ""
+}
