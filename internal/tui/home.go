@@ -16,9 +16,12 @@ type modeOption struct {
 	mode        Mode
 }
 
+const modeExit Mode = "exit"
+
 var modeOptions = []modeOption{
 	{"Kits", "Create Drum programs", ModeKits},
 	{"Instruments", "Create Keygroup programs", ModeInstruments},
+	{"Quit", "Quit roger", modeExit},
 }
 
 const (
@@ -56,8 +59,11 @@ func (m *HomeModel) Update(msg tea.Msg) (tea.Cmd, shared.Transition) {
 			m.cursor++
 		}
 	case "enter":
+		if modeOptions[m.cursor].mode == modeExit {
+			return nil, shared.Transition{Phase: shared.Abort}
+		}
 		return nil, shared.Transition{Phase: shared.Next, Data: modeOptions[m.cursor].mode}
-	case "esc", "ctrl+c":
+	case "ctrl+c":
 		return nil, shared.Transition{Phase: shared.Abort}
 	}
 	return nil, shared.Transition{}
