@@ -14,9 +14,10 @@ import (
 
 // Setup holds the results of kits-specific initialization.
 type Setup struct {
-	TopLevelDirs []string
-	PadStyles    [16]lipgloss.Style
-	IsFirstRun   bool
+	TopLevelDirs   []string
+	PadStyles      [16]lipgloss.Style
+	IsFirstRun     bool
+	CreateExamples func() []string // non-nil on first run; call to create example dirs and return them
 }
 
 // SetupFunc performs kits-specific initialization (template loading,
@@ -48,17 +49,19 @@ func NewSetupFunc(baseDir, srcDir string, packArgs []string) SetupFunc {
 			topLevelDirs = sampler.ListSubdirs(srcDir)
 		}
 
-		isFirstRun := false
+		var createExamples func() []string
 		if len(packArgs) == 0 && len(topLevelDirs) == 0 {
-			examples.CreateExampleDirs(srcDir)
-			topLevelDirs = sampler.ListSubdirs(srcDir)
-			isFirstRun = true
+			createExamples = func() []string {
+				examples.CreateExampleDirs(srcDir)
+				return sampler.ListSubdirs(srcDir)
+			}
 		}
 
 		return Setup{
-			TopLevelDirs: topLevelDirs,
-			PadStyles:    mpc.ExtractPadStyles(),
-			IsFirstRun:   isFirstRun,
+			TopLevelDirs:   topLevelDirs,
+			PadStyles:      mpc.ExtractPadStyles(),
+			IsFirstRun:     createExamples != nil,
+			CreateExamples: createExamples,
 		}
 	}
 }

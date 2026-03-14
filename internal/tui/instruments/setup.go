@@ -10,8 +10,9 @@ import (
 
 // Setup holds the results of instruments-specific initialization.
 type Setup struct {
-	TopLevelDirs []string
-	IsFirstRun   bool
+	TopLevelDirs   []string
+	IsFirstRun     bool
+	CreateExamples func() []string // non-nil on first run; call to create example dirs and return them
 }
 
 // SetupFunc performs instruments-specific initialization
@@ -31,16 +32,18 @@ func NewSetupFunc(srcDir string, packArgs []string) SetupFunc {
 			topLevelDirs = sampler.ListSubdirs(srcDir)
 		}
 
-		isFirstRun := false
+		var createExamples func() []string
 		if len(packArgs) == 0 && len(topLevelDirs) == 0 {
-			examples.CreateExampleInstrumentDirs(srcDir)
-			topLevelDirs = sampler.ListSubdirs(srcDir)
-			isFirstRun = true
+			createExamples = func() []string {
+				examples.CreateExampleInstrumentDirs(srcDir)
+				return sampler.ListSubdirs(srcDir)
+			}
 		}
 
 		return Setup{
-			TopLevelDirs: topLevelDirs,
-			IsFirstRun:   isFirstRun,
+			TopLevelDirs:   topLevelDirs,
+			IsFirstRun:     createExamples != nil,
+			CreateExamples: createExamples,
 		}
 	}
 }

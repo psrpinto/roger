@@ -20,8 +20,10 @@ func (m *FirstRunModel) Update(msg tea.Msg) (tea.Cmd, shared.Transition) {
 		return nil, shared.Transition{}
 	}
 	switch kp.String() {
-	case "enter":
-		return nil, shared.Transition{Phase: shared.Next}
+	case "y", "Y", "enter":
+		return nil, shared.Transition{Phase: shared.Next, Data: true}
+	case "n", "N":
+		return nil, shared.Transition{Phase: shared.Next, Data: false}
 	case "esc", "ctrl+c":
 		return nil, shared.Transition{Phase: shared.Back}
 	}
@@ -30,6 +32,5 @@ func (m *FirstRunModel) Update(msg tea.Msg) (tea.Cmd, shared.Transition) {
 
 func (m *FirstRunModel) View() string {
 	return "Workspace: " + shared.Cyan.Render(m.baseDir) + "\n\n" +
-		"Example directories have been created in Instruments/ to get you started.\n\n" +
-		"Press Enter to continue."
+		"No instruments found. Would you like example directories to be created in Instruments/? [Y/n] "
 }
