@@ -13,10 +13,18 @@ func NewModel() *Model {
 }
 
 func (m *Model) Update(msg tea.Msg) (tea.Cmd, shared.Transition) {
-	if _, ok := msg.(tea.KeyPressMsg); ok {
+	kp, ok := msg.(tea.KeyPressMsg)
+	if !ok {
+		return nil, shared.Transition{}
+	}
+	switch kp.String() {
+	case "esc":
+		return nil, shared.Transition{Phase: shared.Back}
+	case "ctrl+c":
+		return nil, shared.Transition{Phase: shared.Abort}
+	default:
 		return nil, shared.Transition{Phase: shared.Next}
 	}
-	return nil, shared.Transition{}
 }
 
 func (m *Model) View() string {

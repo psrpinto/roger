@@ -32,10 +32,13 @@ const (
 	stateDone
 )
 
+const breadcrumbHeight = 3
+
 // Model is the thin orchestrator.
 type Model struct {
 	state      appState
 	mode       Mode
+	cliMode    bool // true if mode was passed via CLI
 	cfg        *config.Config
 	baseDir    string
 	kitsSrcDir string
@@ -71,6 +74,7 @@ type Model struct {
 func NewModel(baseDir, kitsSrcDir, instSrcDir, destDir string, cfg *config.Config, mode Mode, kitsSetupFn kits.SetupFunc, instrumentsSetupFn instruments.SetupFunc) Model {
 	m := Model{
 		mode:               mode,
+		cliMode:            mode != "",
 		cfg:                cfg,
 		baseDir:            baseDir,
 		kitsSrcDir:         kitsSrcDir,
@@ -132,7 +136,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.width = msg.Width
 		m.height = msg.Height
 		if m.kitsPreview != nil {
-			m.kitsPreview.Resize(msg.Width, msg.Height)
+			m.kitsPreview.Resize(msg.Width, msg.Height-breadcrumbHeight)
 		}
 		return m, nil
 	case shared.ErrMsg:
@@ -164,6 +168,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case shared.Abort:
 		m.Aborted = true
 		return m, tea.Quit
+	case shared.Back:
+		return m.retreatPhase()
 	case shared.Next:
 		return m.advancePhase(tr.Data)
 	}
@@ -200,7 +206,7 @@ func (m Model) advancePhase(data any) (tea.Model, tea.Cmd) {
 			return m, tea.Quit
 		}
 		m.state = stateKitsPreview
-		m.kitsPreview = kits.NewPreviewModel(d.Packs, d.EmptyPacks, d.WrongSampleCount, m.padStyles, m.cfg, m.width, m.height)
+		m.kitsPreview = kits.NewPreviewModel(d.Packs, d.EmptyPacks, d.WrongSampleCount, m.padStyles, m.cfg, m.width, m.height-breadcrumbHeight)
 		return m, nil
 
 	case stateKitsPreview:
@@ -230,6 +236,50 @@ func (m Model) advancePhase(data any) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
+func (m Model) retreatPhase() (tea.Model, tea.Cmd) {
+	if m.cliMode {
+		m.Aborted = true
+		return m, tea.Quit
+	}
+
+	switch m.state {
+	case stateKitsFirstRun, stateKitsPreview:
+		m.kitsFirstRun = nil
+		m.kitsScan = nil
+		m.kitsPreview = nil
+		m.state = stateModeSelect
+		m.modeSelect = newModeSelectModel()
+		return m, nil
+	case stateInstrumentsFirstRun, stateInstruments:
+		m.instrumentsFirstRun = nil
+		m.instrumentsModel = nil
+		m.state = stateModeSelect
+		m.modeSelect = newModeSelectModel()
+		return m, nil
+	}
+
+	return m, nil
+}
+
+func (m Model) breadcrumb() []string {
+	switch m.state {
+	case stateKitsFirstRun:
+		return []string{"roger", "Kits", "Setup"}
+	case stateKitsScanning:
+		return []string{"roger", "Kits", "Scanning"}
+	case stateKitsPreview:
+		return []string{"roger", "Kits", "Preview"}
+	case stateKitsGenerating:
+		return []string{"roger", "Kits", "Generating"}
+	case stateInstrumentsFirstRun:
+		return []string{"roger", "Instruments", "Setup"}
+	case stateInstruments:
+		return []string{"roger", "Instruments"}
+	default:
+		return nil
+	}
+}
+
 func (m Model) View() tea.View {
 	var s string
 	switch m.state {
@@ -250,6 +300,11 @@ func (m Model) View() tea.View {
 	case stateDone:
 		s = ""
 	}
+
+	if segments := m.breadcrumb(); segments != nil {
+		s = shared.RenderBreadcrumb(segments, m.width) + s
+	}
+
 	v := tea.NewView(s)
 	v.AltScreen = true
 	return v

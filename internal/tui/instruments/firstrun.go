@@ -25,7 +25,9 @@ func (m *FirstRunModel) Update(msg tea.Msg) (tea.Cmd, shared.Transition) {
 	switch kp.String() {
 	case "y", "Y", "enter":
 		return nil, shared.Transition{Phase: shared.Next}
-	case "n", "N", "esc", "q", "ctrl+c":
+	case "esc":
+		return nil, shared.Transition{Phase: shared.Back}
+	case "n", "N", "q", "ctrl+c":
 		return nil, shared.Transition{Phase: shared.Abort}
 	}
 	return nil, shared.Transition{}
