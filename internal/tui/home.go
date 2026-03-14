@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 
 	"roger/internal/tui/shared"
 )
@@ -64,7 +65,8 @@ func (m *HomeModel) Update(msg tea.Msg) (tea.Cmd, shared.Transition) {
 
 func (m *HomeModel) View() string {
 	var b strings.Builder
-	logo := shared.Bold.Render(
+	logoStyle := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#c070d0"))
+	logo := logoStyle.Render(
 		"_ __ ___   __ _  ___ _ __\n" +
 			"| '__/ _ \\ / _` |/ _ \\ '__|\n" +
 			"| | | (_) | (_| |  __/ |\n" +
@@ -76,12 +78,14 @@ func (m *HomeModel) View() string {
 	fmt.Fprintln(&b, "What would you like to create?")
 	fmt.Fprintln(&b)
 	for i, opt := range modeOptions {
+		if i > 0 {
+			fmt.Fprintln(&b)
+		}
 		if i == m.cursor {
 			fmt.Fprintf(&b, "%s %s\n", shared.Cyan.Render("▸"), shared.Bold.Render(opt.label))
 			fmt.Fprintf(&b, "  %s\n", shared.Dim.Render(opt.description))
 		} else {
 			fmt.Fprintf(&b, "  %s\n", shared.Dim.Render(opt.label))
-			fmt.Fprintln(&b)
 		}
 	}
 	if (m.width > 0 && m.width < minWidth) || (m.height > 0 && m.height < minHeight) {
