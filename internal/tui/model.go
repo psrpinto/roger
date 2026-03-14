@@ -8,13 +8,23 @@ import (
 	"roger/internal/kit"
 )
 
+// Mode represents the top-level operating mode.
+type Mode string
+
+const (
+	ModeKits        Mode = "kits"
+	ModeInstruments Mode = "instruments"
+)
+
 type appState int
 
 const (
-	stateFirstRun appState = iota
+	stateModeSelect appState = iota
+	stateFirstRun
 	stateScanning
 	statePreview
 	stateGenerating
+	stateInstruments
 	stateDone
 )
 
@@ -63,6 +73,7 @@ type transition struct {
 // Model is the thin orchestrator.
 type Model struct {
 	state        appState
+	mode         Mode
 	cfg          *config.Config
 	baseDir      string
 	srcDir       string
@@ -72,39 +83,58 @@ type Model struct {
 	width        int
 	height       int
 
-	firstRun *firstRunModel
-	scan     *scanModel
-	preview  *previewModel
-	gen      *genModel
+	modeSelect  *modeSelectModel
+	firstRun    *firstRunModel
+	scan        *scanModel
+	preview     *previewModel
+	gen         *genModel
+	instruments *instrumentsModel
+
+	isFirstRun bool
 
 	// final results (read after Tea exits)
-	KitCount    int
+	KitCount int
 	SampleCount int
 	TotalSize   int64
 	Aborted     bool
 }
 
-func NewModel(baseDir, srcDir, destDir string, topLevelDirs []string, isFirstRun bool, padStyles [16]lipgloss.Style, cfg *config.Config) Model {
-	state := stateScanning
-	if isFirstRun {
-		state = stateFirstRun
+func NewModel(baseDir, srcDir, destDir string, topLevelDirs []string, isFirstRun bool, padStyles [16]lipgloss.Style, cfg *config.Config, mode Mode) Model {
+	var state appState
+	switch mode {
+	case ModeKits:
+		if isFirstRun {
+			state = stateFirstRun
+		} else {
+			state = stateScanning
+		}
+	case ModeInstruments:
+		state = stateInstruments
+	default:
+		state = stateModeSelect
 	}
 
 	m := Model{
 		state:        state,
+		mode:         mode,
 		cfg:          cfg,
 		baseDir:      baseDir,
 		srcDir:       srcDir,
 		destDir:      destDir,
 		topLevelDirs: topLevelDirs,
 		padStyles:    padStyles,
+		isFirstRun:   isFirstRun,
 	}
 
 	switch state {
+	case stateModeSelect:
+		m.modeSelect = newModeSelectModel()
 	case stateFirstRun:
 		m.firstRun = newFirstRunModel(baseDir)
 	case stateScanning:
 		m.scan = newScanModel(topLevelDirs, srcDir, cfg)
+	case stateInstruments:
+		m.instruments = newInstrumentsModel()
 	}
 
 	return m
@@ -112,8 +142,6 @@ func NewModel(baseDir, srcDir, destDir string, topLevelDirs []string, isFirstRun
 
 func (m Model) Init() tea.Cmd {
 	switch m.state {
-	case stateFirstRun:
-		return nil
 	case stateScanning:
 		return m.scan.init()
 	}
@@ -138,6 +166,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var tr transition
 
 	switch m.state {
+	case stateModeSelect:
+		cmd, tr = m.modeSelect.update(msg)
 	case stateFirstRun:
 		cmd, tr = m.firstRun.update(msg)
 	case stateScanning:
@@ -146,6 +176,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		cmd, tr = m.preview.update(msg)
 	case stateGenerating:
 		cmd, tr = m.gen.update(msg)
+	case stateInstruments:
+		cmd, tr = m.instruments.update(msg)
 	}
 
 	switch tr.phase {
@@ -161,6 +193,26 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m Model) advancePhase(data any) (tea.Model, tea.Cmd) {
 	switch m.state {
+	case stateModeSelect:
+		m.mode = data.(Mode)
+		switch m.mode {
+		case ModeKits:
+			if m.isFirstRun {
+				m.state = stateFirstRun
+				m.firstRun = newFirstRunModel(m.baseDir)
+			} else {
+				m.state = stateScanning
+				m.scan = newScanModel(m.topLevelDirs, m.srcDir, m.cfg)
+				return m, m.scan.init()
+			}
+			return m, nil
+		case ModeInstruments:
+			m.state = stateInstruments
+			m.instruments = newInstrumentsModel()
+			return m, nil
+		}
+		return m, nil
+
 	case stateFirstRun:
 		m.state = stateScanning
 		m.scan = newScanModel(m.topLevelDirs, m.srcDir, m.cfg)
@@ -189,6 +241,10 @@ func (m Model) advancePhase(data any) (tea.Model, tea.Cmd) {
 		m.TotalSize = d.totalSize
 		m.state = stateDone
 		return m, tea.Quit
+
+	case stateInstruments:
+		m.state = stateDone
+		return m, tea.Quit
 	}
 
 	return m, nil
@@ -197,6 +253,8 @@ func (m Model) advancePhase(data any) (tea.Model, tea.Cmd) {
 func (m Model) View() tea.View {
 	var s string
 	switch m.state {
+	case stateModeSelect:
+		s = m.modeSelect.view()
 	case stateFirstRun:
 		s = m.firstRun.view()
 	case stateScanning:
@@ -205,6 +263,8 @@ func (m Model) View() tea.View {
 		s = m.preview.view()
 	case stateGenerating:
 		s = m.gen.view()
+	case stateInstruments:
+		s = m.instruments.view()
 	case stateDone:
 		s = ""
 	}

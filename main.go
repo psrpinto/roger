@@ -51,9 +51,26 @@ func main() {
 
 	padStyles := mpc.ExtractPadStyles()
 
+	// Parse mode and pack arguments
+	var mode tui.Mode
+	args := os.Args[1:]
+	if len(args) > 0 {
+		switch args[0] {
+		case "kits":
+			mode = tui.ModeKits
+			args = args[1:]
+		case "instruments":
+			mode = tui.ModeInstruments
+			args = args[1:]
+		}
+	}
+
 	var topLevelDirs []string
-	if len(os.Args) > 1 {
-		for _, arg := range os.Args[1:] {
+	if len(args) > 0 {
+		if mode == "" {
+			mode = tui.ModeKits
+		}
+		for _, arg := range args {
 			packDir := filepath.Join(srcDir, arg)
 			if info, err := os.Stat(packDir); err != nil || !info.IsDir() {
 				fmt.Fprintf(os.Stderr, "error: pack directory not found: %s\n", packDir)
@@ -61,18 +78,18 @@ func main() {
 			}
 			topLevelDirs = append(topLevelDirs, packDir)
 		}
-	} else {
+	} else if mode == tui.ModeKits || mode == "" {
 		topLevelDirs = sampler.ListSubdirs(srcDir)
 	}
 
 	isFirstRun := false
-	if len(os.Args) <= 1 && len(topLevelDirs) == 0 {
+	if mode != tui.ModeInstruments && len(args) == 0 && len(topLevelDirs) == 0 {
 		examples.CreateExampleDirs(srcDir)
 		topLevelDirs = sampler.ListSubdirs(srcDir)
 		isFirstRun = true
 	}
 
-	m := tui.NewModel(baseDir, srcDir, destDir, topLevelDirs, isFirstRun, padStyles, cfg)
+	m := tui.NewModel(baseDir, srcDir, destDir, topLevelDirs, isFirstRun, padStyles, cfg, mode)
 	p := tea.NewProgram(m)
 	finalModel, err := p.Run()
 	if err != nil {
