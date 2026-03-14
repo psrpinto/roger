@@ -155,7 +155,7 @@ func (m *Model) newHelpForMode() subModel {
 // canShowHelp returns true for interactive states where help makes sense.
 func (m *Model) canShowHelp() bool {
 	switch m.state {
-	case stateKitsFirstRun, stateKitsPreview, stateInstrumentsFirstRun, stateInstruments:
+	case stateModeSelect, stateKitsFirstRun, stateKitsPreview, stateInstrumentsFirstRun, stateInstruments:
 		return true
 	}
 	return false
@@ -341,6 +341,8 @@ func (m *Model) breadcrumb() []string {
 		default:
 			return []string{"roger", "Help"}
 		}
+	case stateModeSelect:
+		return []string{"roger"}
 	default:
 		return nil
 	}
