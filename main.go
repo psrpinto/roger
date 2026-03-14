@@ -8,8 +8,6 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"roger/internal/config"
-	"roger/internal/examples"
-	"roger/internal/mpc"
 	"roger/internal/sampler"
 	"roger/internal/tui"
 	"roger/internal/tui/instruments"
@@ -73,68 +71,10 @@ func main() {
 		}
 	}
 
-	kitsSetupFn := func() kits.Setup {
-		if err := os.MkdirAll(kitsSrcDir, 0o755); err != nil {
-			fmt.Fprintf(os.Stderr, "error: creating directory %s: %s\n", kitsSrcDir, err)
-			os.Exit(1)
-		}
-
-		templatePath := filepath.Join(baseDir, "kit.xpm")
-		if _, err := os.Stat(templatePath); os.IsNotExist(err) {
-			os.WriteFile(templatePath, mpc.ProgramTemplate, 0o644)
-		}
-		expansionPath := filepath.Join(baseDir, "expansion.xml")
-		if _, err := os.Stat(expansionPath); os.IsNotExist(err) {
-			os.WriteFile(expansionPath, mpc.ExpansionTemplate, 0o644)
-		}
-
-		mpc.LoadCustomTemplate(baseDir)
-		mpc.LoadCustomExpansionTemplate(baseDir)
-
-		topLevelDirs := packArgs
-		if len(topLevelDirs) == 0 {
-			topLevelDirs = sampler.ListSubdirs(kitsSrcDir)
-		}
-
-		isFirstRun := false
-		if len(packArgs) == 0 && len(topLevelDirs) == 0 {
-			examples.CreateExampleDirs(kitsSrcDir)
-			topLevelDirs = sampler.ListSubdirs(kitsSrcDir)
-			isFirstRun = true
-		}
-
-		return kits.Setup{
-			TopLevelDirs: topLevelDirs,
-			PadStyles:    mpc.ExtractPadStyles(),
-			IsFirstRun:   isFirstRun,
-		}
-	}
-
-	instrumentsSetupFn := func() instruments.Setup {
-		if err := os.MkdirAll(instSrcDir, 0o755); err != nil {
-			fmt.Fprintf(os.Stderr, "error: creating directory %s: %s\n", instSrcDir, err)
-			os.Exit(1)
-		}
-
-		topLevelDirs := packArgs
-		if len(topLevelDirs) == 0 {
-			topLevelDirs = sampler.ListSubdirs(instSrcDir)
-		}
-
-		isFirstRun := false
-		if len(packArgs) == 0 && len(topLevelDirs) == 0 {
-			examples.CreateExampleInstrumentDirs(instSrcDir)
-			topLevelDirs = sampler.ListSubdirs(instSrcDir)
-			isFirstRun = true
-		}
-
-		return instruments.Setup{
-			TopLevelDirs: topLevelDirs,
-			IsFirstRun:   isFirstRun,
-		}
-	}
-
-	m := tui.NewModel(baseDir, kitsSrcDir, instSrcDir, destDir, cfg, mode, kitsSetupFn, instrumentsSetupFn)
+	m := tui.NewModel(baseDir, kitsSrcDir, instSrcDir, destDir, cfg, mode,
+		kits.NewSetupFunc(baseDir, kitsSrcDir, packArgs),
+		instruments.NewSetupFunc(instSrcDir, packArgs),
+	)
 	p := tea.NewProgram(m)
 	finalModel, err := p.Run()
 	if err != nil {

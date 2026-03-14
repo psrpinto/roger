@@ -6,16 +6,6 @@ import (
 	"roger/internal/tui/shared"
 )
 
-// Setup holds the results of instruments-specific initialization.
-type Setup struct {
-	TopLevelDirs []string
-	IsFirstRun   bool
-}
-
-// SetupFunc performs instruments-specific initialization
-// (directory scanning, example creation) and returns the results.
-type SetupFunc func() Setup
-
 type Model struct{}
 
 func NewModel() *Model {
