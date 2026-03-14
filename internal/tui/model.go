@@ -29,6 +29,7 @@ const (
 	stateKitsGenerating
 	stateInstrumentsFirstRun
 	stateInstruments
+	stateHelp
 	stateDone
 )
 
@@ -63,6 +64,10 @@ type Model struct {
 	kitsGen             *kits.GenModel
 	instrumentsFirstRun *instruments.FirstRunModel
 	instrumentsModel    *instruments.Model
+
+	// help
+	helpContent string
+	helpPrev    appState
 
 	// final results (read after Tea exits)
 	KitCount    int
@@ -130,6 +135,27 @@ func (m Model) Init() tea.Cmd {
 	return nil
 }
 
+// helpContentForMode returns the usage text for the current mode.
+func (m Model) helpContentForMode() string {
+	switch m.mode {
+	case ModeKits:
+		return kits.RenderHelp(m.baseDir)
+	case ModeInstruments:
+		return instruments.RenderHelp(m.baseDir)
+	default:
+		return RenderGeneralUsage(m.baseDir)
+	}
+}
+
+// canShowHelp returns true for interactive states where help makes sense.
+func (m Model) canShowHelp() bool {
+	switch m.state {
+	case stateKitsFirstRun, stateKitsPreview, stateInstrumentsFirstRun, stateInstruments:
+		return true
+	}
+	return false
+}
+
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
@@ -146,6 +172,29 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case shared.ErrMsg:
 		m.state = stateDone
 		return m, tea.Quit
+	}
+
+	// Handle help state
+	if m.state == stateHelp {
+		if kp, ok := msg.(tea.KeyPressMsg); ok {
+			switch kp.String() {
+			case "ctrl+c":
+				m.Aborted = true
+				return m, tea.Quit
+			default:
+				m.state = m.helpPrev
+				return m, nil
+			}
+		}
+		return m, nil
+	}
+
+	// Intercept "?" for help in interactive states
+	if kp, ok := msg.(tea.KeyPressMsg); ok && kp.String() == "?" && m.canShowHelp() {
+		m.helpContent = m.helpContentForMode()
+		m.helpPrev = m.state
+		m.state = stateHelp
+		return m, nil
 	}
 
 	var cmd tea.Cmd
@@ -279,6 +328,15 @@ func (m Model) breadcrumb() []string {
 		return []string{"roger", "Instruments", "Setup"}
 	case stateInstruments:
 		return []string{"roger", "Instruments"}
+	case stateHelp:
+		switch m.mode {
+		case ModeKits:
+			return []string{"roger", "Kits", "Help"}
+		case ModeInstruments:
+			return []string{"roger", "Instruments", "Help"}
+		default:
+			return []string{"roger", "Help"}
+		}
 	default:
 		return nil
 	}
@@ -301,6 +359,8 @@ func (m Model) View() tea.View {
 		s = m.instrumentsFirstRun.View()
 	case stateInstruments:
 		s = m.instrumentsModel.View()
+	case stateHelp:
+		s = m.helpContent + "\n" + shared.Dim.Render("Press any key to go back")
 	case stateDone:
 		s = ""
 	}

@@ -41,7 +41,7 @@ func RenderBreadcrumb(segments []string, width int) string {
 	}
 	sep := Dim.Render(" › ")
 	left := "  " + strings.Join(parts, sep)
-	hint := Dim.Render("Esc ← back  Ctrl-c quit")
+	hint := Dim.Render("? help  Esc ← back  Ctrl-c quit")
 	// Calculate visible width of left side (sum of segment lengths + separators + indent)
 	visibleLeft := 2 // indent
 	for i, s := range segments {
@@ -50,7 +50,7 @@ func RenderBreadcrumb(segments []string, width int) string {
 		}
 		visibleLeft += len([]rune(s))
 	}
-	hintLen := 23 // "Esc ← back  Ctrl-c quit"
+	hintLen := 31 // "? help  Esc ← back  Ctrl-c quit"
 	gap := width - visibleLeft - hintLen
 	if gap < 2 {
 		gap = 2
