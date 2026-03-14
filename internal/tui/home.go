@@ -99,7 +99,24 @@ func (m *HomeModel) View() string {
 				shared.Yellow.Render("warning:"), m.height, minHeight)
 		}
 	}
+	hints := []string{
+		"Use ↑/↓ or j/k to navigate, and Enter to select.",
+		"Press Esc to go back to the previous screen.",
+		"Scroll long screens with ↑/↓ or your scroll wheel.",
+		"Press ? on any screen to open its help page.",
+		"Press Ctrl-c at any time to quit.",
+	}
+	maxLen := 0
+	for _, h := range hints {
+		if l := len([]rune(h)); l > maxLen {
+			maxLen = l
+		}
+	}
 	fmt.Fprintln(&b)
-	fmt.Fprintln(&b, shared.Dim.Render("↑/↓ to navigate, Enter to select, Esc to quit"))
+	fmt.Fprintln(&b, shared.Dim.Render(strings.Repeat("─", maxLen)))
+	fmt.Fprintln(&b)
+	for _, h := range hints {
+		fmt.Fprintln(&b, shared.Dim.Render(h))
+	}
 	return b.String()
 }
