@@ -21,7 +21,7 @@ func main() {
 	destDir := filepath.Join(baseDir, "Output")
 
 	if len(os.Args) > 1 && (os.Args[1] == "--help" || os.Args[1] == "-h") {
-		fmt.Print(tui.RenderGeneralUsage(baseDir))
+		fmt.Print(tui.RenderHelp(baseDir))
 		return
 	}
 

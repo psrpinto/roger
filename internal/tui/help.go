@@ -4,11 +4,28 @@ import (
 	"fmt"
 	"strings"
 
+	tea "charm.land/bubbletea/v2"
+
 	"roger/internal/tui/shared"
 )
 
-// RenderGeneralUsage renders the overall usage/help text for the given baseDir.
-func RenderGeneralUsage(baseDir string) string {
+type HelpModel struct {
+	inner *shared.HelpModel
+}
+
+func NewHelpModel(baseDir string) *HelpModel {
+	return &HelpModel{inner: shared.NewHelpModel(RenderHelp(baseDir))}
+}
+
+func (m *HelpModel) Update(msg tea.Msg) (tea.Cmd, shared.Transition) {
+	return m.inner.Update(msg)
+}
+
+func (m *HelpModel) View() string {
+	return m.inner.View()
+}
+
+func RenderHelp(baseDir string) string {
 	var b strings.Builder
 
 	fmt.Fprintf(&b, "%s organizes samples into MPC-ready kits and instruments.\n", shared.Bold.Render("roger"))

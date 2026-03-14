@@ -148,7 +148,7 @@ func (m *Model) newHelpForMode() subModel {
 	case ModeInstruments:
 		return instruments.NewHelpModel(m.baseDir)
 	default:
-		return shared.NewHelpModel(RenderGeneralUsage(m.baseDir))
+		return NewHelpModel(m.baseDir)
 	}
 }
 
