@@ -19,7 +19,7 @@ type kitState int
 
 const (
 	stateHome kitState = iota
-	stateFirstRun
+	stateEmpty
 	stateScanning
 	statePreview
 	stateGenerating
@@ -49,7 +49,7 @@ type Model struct {
 	padStyles    [16]lipgloss.Style
 
 	home     *HomeModel
-	firstRun *FirstRunModel
+	empty *EmptyModel
 	scan     *ScanModel
 	preview  *PreviewModel
 	gen      *GenModel
@@ -93,8 +93,8 @@ func (m *Model) init() {
 	m.padStyles = mpc.ExtractPadStyles()
 
 	if len(m.packArgs) == 0 && len(m.topLevelDirs) == 0 {
-		m.state = stateFirstRun
-		m.firstRun = NewFirstRunModel(m.baseDir, m.kitsSrcDir)
+		m.state = stateEmpty
+		m.empty = NewEmptyModel(m.baseDir, m.kitsSrcDir)
 	} else {
 		m.state = stateHome
 		m.home = NewHomeModel()
@@ -110,7 +110,7 @@ func (m *Model) Init() tea.Cmd {
 
 func (m *Model) canShowHelp() bool {
 	switch m.state {
-	case stateHome, stateFirstRun, statePreview:
+	case stateHome, stateEmpty, statePreview:
 		return true
 	}
 	return false
@@ -121,7 +121,7 @@ func (m *Model) Breadcrumb() []string {
 	switch m.state {
 	case stateHome:
 		return []string{"roger", "Kits"}
-	case stateFirstRun:
+	case stateEmpty:
 		return []string{"roger", "Kits", "Setup"}
 	case stateScanning:
 		return []string{"roger", "Kits", "Scanning"}
@@ -171,8 +171,8 @@ func (m *Model) Update(msg tea.Msg) (tea.Cmd, shared.Transition) {
 	switch m.state {
 	case stateHome:
 		cmd, tr = m.home.Update(msg)
-	case stateFirstRun:
-		cmd, tr = m.firstRun.Update(msg)
+	case stateEmpty:
+		cmd, tr = m.empty.Update(msg)
 	case stateScanning:
 		cmd, tr = m.scan.Update(msg)
 	case statePreview:
@@ -195,9 +195,9 @@ func (m *Model) Update(msg tea.Msg) (tea.Cmd, shared.Transition) {
 
 func (m *Model) advancePhase(data any) (tea.Cmd, shared.Transition) {
 	switch m.state {
-	case stateFirstRun:
-		m.firstRun = nil
-		// Re-scan in case firstRun created new directories.
+	case stateEmpty:
+		m.empty = nil
+		// Re-scan in case empty created new directories.
 		if len(m.packArgs) == 0 {
 			m.topLevelDirs = sampler.ListSubdirs(m.kitsSrcDir)
 		}
@@ -242,7 +242,7 @@ func (m *Model) advancePhase(data any) (tea.Cmd, shared.Transition) {
 
 func (m *Model) retreatPhase() (tea.Cmd, shared.Transition) {
 	switch m.state {
-	case stateHome, stateFirstRun:
+	case stateHome, stateEmpty:
 		return nil, shared.Transition{Phase: shared.Back}
 	case statePreview:
 		m.preview = nil
@@ -259,8 +259,8 @@ func (m *Model) View() string {
 	switch m.state {
 	case stateHome:
 		return m.home.View()
-	case stateFirstRun:
-		return m.firstRun.View()
+	case stateEmpty:
+		return m.empty.View()
 	case stateScanning:
 		return m.scan.View()
 	case statePreview:

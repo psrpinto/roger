@@ -1,4 +1,4 @@
-package kits
+package instruments
 
 import (
 	tea "charm.land/bubbletea/v2"
@@ -7,23 +7,23 @@ import (
 	"roger/internal/tui/shared"
 )
 
-type FirstRunModel struct {
+type EmptyModel struct {
 	baseDir string
 	srcDir  string
 }
 
-func NewFirstRunModel(baseDir, srcDir string) *FirstRunModel {
-	return &FirstRunModel{baseDir: baseDir, srcDir: srcDir}
+func NewEmptyModel(baseDir, srcDir string) *EmptyModel {
+	return &EmptyModel{baseDir: baseDir, srcDir: srcDir}
 }
 
-func (m *FirstRunModel) Update(msg tea.Msg) (tea.Cmd, shared.Transition) {
+func (m *EmptyModel) Update(msg tea.Msg) (tea.Cmd, shared.Transition) {
 	kp, ok := msg.(tea.KeyPressMsg)
 	if !ok {
 		return nil, shared.Transition{}
 	}
 	switch kp.String() {
 	case "y", "Y", "enter":
-		examples.CreateExampleDirs(m.srcDir)
+		examples.CreateExampleInstrumentDirs(m.srcDir)
 		return nil, shared.Transition{Phase: shared.Next}
 	case "n", "N":
 		return nil, shared.Transition{Phase: shared.Next}
@@ -33,7 +33,7 @@ func (m *FirstRunModel) Update(msg tea.Msg) (tea.Cmd, shared.Transition) {
 	return nil, shared.Transition{}
 }
 
-func (m *FirstRunModel) View() string {
+func (m *EmptyModel) View() string {
 	return "Workspace: " + shared.Cyan.Render(m.baseDir) + "\n\n" +
-		"No kits found. Would you like example directories to be created in Kits/? [Y/n] "
+		"No instruments found. Would you like example directories to be created in Instruments/? [Y/n] "
 }

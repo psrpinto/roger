@@ -14,7 +14,7 @@ type instState int
 
 const (
 	stateHome instState = iota
-	stateFirstRun
+	stateEmpty
 	stateHelp
 )
 
@@ -27,7 +27,7 @@ type Model struct {
 	packArgs   []string
 
 	home     *HomeModel
-	firstRun *FirstRunModel
+	empty *EmptyModel
 	help     *HelpModel
 	helpPrev instState
 }
@@ -54,8 +54,8 @@ func (m *Model) init() {
 	}
 
 	if len(m.packArgs) == 0 && len(topLevelDirs) == 0 {
-		m.state = stateFirstRun
-		m.firstRun = NewFirstRunModel(m.baseDir, m.instSrcDir)
+		m.state = stateEmpty
+		m.empty = NewEmptyModel(m.baseDir, m.instSrcDir)
 	} else {
 		m.state = stateHome
 		m.home = NewHomeModel()
@@ -68,7 +68,7 @@ func (m *Model) Init() tea.Cmd {
 
 func (m *Model) canShowHelp() bool {
 	switch m.state {
-	case stateHome, stateFirstRun:
+	case stateHome, stateEmpty:
 		return true
 	}
 	return false
@@ -79,7 +79,7 @@ func (m *Model) Breadcrumb() []string {
 	switch m.state {
 	case stateHome:
 		return []string{"roger", "Instruments"}
-	case stateFirstRun:
+	case stateEmpty:
 		return []string{"roger", "Instruments", "Setup"}
 	case stateHelp:
 		return []string{"roger", "Instruments", "Help"}
@@ -114,8 +114,8 @@ func (m *Model) Update(msg tea.Msg) (tea.Cmd, shared.Transition) {
 	switch m.state {
 	case stateHome:
 		cmd, tr = m.home.Update(msg)
-	case stateFirstRun:
-		cmd, tr = m.firstRun.Update(msg)
+	case stateEmpty:
+		cmd, tr = m.empty.Update(msg)
 	}
 
 	switch tr.Phase {
@@ -131,8 +131,8 @@ func (m *Model) Update(msg tea.Msg) (tea.Cmd, shared.Transition) {
 }
 
 func (m *Model) advancePhase() (tea.Cmd, shared.Transition) {
-	if m.state == stateFirstRun {
-		m.firstRun = nil
+	if m.state == stateEmpty {
+		m.empty = nil
 		m.state = stateHome
 		m.home = NewHomeModel()
 	}
@@ -141,9 +141,9 @@ func (m *Model) advancePhase() (tea.Cmd, shared.Transition) {
 
 func (m *Model) retreatPhase() (tea.Cmd, shared.Transition) {
 	switch m.state {
-	case stateFirstRun:
+	case stateEmpty:
 		// Go to instruments home (not root home), matching original behavior.
-		m.firstRun = nil
+		m.empty = nil
 		m.state = stateHome
 		m.home = NewHomeModel()
 		return nil, shared.Transition{}
@@ -159,8 +159,8 @@ func (m *Model) View() string {
 	switch m.state {
 	case stateHome:
 		return m.home.View()
-	case stateFirstRun:
-		return m.firstRun.View()
+	case stateEmpty:
+		return m.empty.View()
 	case stateHelp:
 		return m.help.View()
 	}
