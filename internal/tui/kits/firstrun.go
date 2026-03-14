@@ -20,18 +20,16 @@ func (m *FirstRunModel) Update(msg tea.Msg) (tea.Cmd, shared.Transition) {
 		return nil, shared.Transition{}
 	}
 	switch kp.String() {
-	case "y", "Y", "enter":
+	case "enter":
 		return nil, shared.Transition{Phase: shared.Next}
-	case "esc":
+	case "esc", "ctrl+c":
 		return nil, shared.Transition{Phase: shared.Back}
-	case "n", "N", "q", "ctrl+c":
-		return nil, shared.Transition{Phase: shared.Abort}
 	}
 	return nil, shared.Transition{}
 }
 
 func (m *FirstRunModel) View() string {
-	return renderHelp(m.baseDir) + "\n" +
-		"Example directories have been created in Kits/ to demonstrate the structure.\n" +
-		"Preview example kits? [Y/n] "
+	return "Workspace: " + shared.Cyan.Render(m.baseDir) + "\n\n" +
+		"Example directories have been created in Kits/ to get you started.\n\n" +
+		"Press Enter to continue."
 }

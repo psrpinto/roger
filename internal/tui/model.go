@@ -111,13 +111,27 @@ func NewModel(baseDir, kitsSrcDir, instSrcDir, destDir string, cfg *config.Confi
 }
 
 func (m *Model) initKits() {
-	m.state = stateKitsHome
-	m.kitsHome = kits.NewHomeModel()
+	ks := m.kitsSetupFn()
+	m.topLevelDirs = ks.TopLevelDirs
+	m.padStyles = ks.PadStyles
+	if ks.IsFirstRun {
+		m.state = stateKitsFirstRun
+		m.kitsFirstRun = kits.NewFirstRunModel(m.baseDir)
+	} else {
+		m.state = stateKitsHome
+		m.kitsHome = kits.NewHomeModel()
+	}
 }
 
 func (m *Model) initInstruments() {
-	m.state = stateInstrumentsHome
-	m.instrumentsHome = instruments.NewHomeModel()
+	is := m.instrumentsSetupFn()
+	if is.IsFirstRun {
+		m.state = stateInstrumentsFirstRun
+		m.instrumentsFirstRun = instruments.NewFirstRunModel(m.baseDir)
+	} else {
+		m.state = stateInstrumentsHome
+		m.instrumentsHome = instruments.NewHomeModel()
+	}
 }
 
 func (m *Model) Init() tea.Cmd {
@@ -242,22 +256,14 @@ func (m *Model) advancePhase(data any) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case stateKitsHome:
-		ks := m.kitsSetupFn()
-		m.topLevelDirs = ks.TopLevelDirs
-		m.padStyles = ks.PadStyles
-		if ks.IsFirstRun {
-			m.state = stateKitsFirstRun
-			m.kitsFirstRun = kits.NewFirstRunModel(m.baseDir)
-			return m, nil
-		}
 		m.state = stateKitsScanning
 		m.kitsScan = kits.NewScanModel(m.topLevelDirs, m.kitsSrcDir, m.cfg)
 		return m, m.kitsScan.Init()
 
 	case stateKitsFirstRun:
-		m.state = stateKitsScanning
-		m.kitsScan = kits.NewScanModel(m.topLevelDirs, m.kitsSrcDir, m.cfg)
-		return m, m.kitsScan.Init()
+		m.state = stateKitsHome
+		m.kitsHome = kits.NewHomeModel()
+		return m, nil
 
 	case stateKitsScanning:
 		d := data.(kits.ScanDoneMsg)
@@ -284,18 +290,13 @@ func (m *Model) advancePhase(data any) (tea.Model, tea.Cmd) {
 		return m, tea.Quit
 
 	case stateInstrumentsHome:
-		is := m.instrumentsSetupFn()
-		if is.IsFirstRun {
-			m.state = stateInstrumentsFirstRun
-			m.instrumentsFirstRun = instruments.NewFirstRunModel(m.baseDir)
-			return m, nil
-		}
 		m.state = stateDone
 		return m, tea.Quit
 
 	case stateInstrumentsFirstRun:
-		m.state = stateDone
-		return m, tea.Quit
+		m.state = stateInstrumentsHome
+		m.instrumentsHome = instruments.NewHomeModel()
+		return m, nil
 	}
 
 	return m, nil
@@ -313,10 +314,12 @@ func (m *Model) retreatPhase() (tea.Model, tea.Cmd) {
 		m.state = stateHome
 		m.home = NewHomeModel()
 		return m, nil
-	case stateKitsFirstRun, stateKitsPreview:
-		m.kitsHome = nil
+	case stateKitsFirstRun:
 		m.kitsFirstRun = nil
-		m.kitsScan = nil
+		m.state = stateHome
+		m.home = NewHomeModel()
+		return m, nil
+	case stateKitsPreview:
 		m.kitsPreview = nil
 		m.state = stateKitsHome
 		m.kitsHome = kits.NewHomeModel()
