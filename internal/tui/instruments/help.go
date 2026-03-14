@@ -4,10 +4,28 @@ import (
 	"fmt"
 	"strings"
 
+	tea "charm.land/bubbletea/v2"
+
 	"roger/internal/tui/shared"
 )
 
-func RenderHelp(baseDir string) string {
+type HelpModel struct {
+	inner *shared.HelpModel
+}
+
+func NewHelpModel(baseDir string) *HelpModel {
+	return &HelpModel{inner: shared.NewHelpModel(renderHelp(baseDir))}
+}
+
+func (m *HelpModel) Update(msg tea.Msg) (tea.Cmd, shared.Transition) {
+	return m.inner.Update(msg)
+}
+
+func (m *HelpModel) View() string {
+	return m.inner.View()
+}
+
+func renderHelp(baseDir string) string {
 	var b strings.Builder
 
 	fmt.Fprintf(&b, "%s organizes instrument samples for MPC instruments.\n", shared.Bold.Render("roger"))

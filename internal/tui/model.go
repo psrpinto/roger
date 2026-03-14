@@ -33,6 +33,12 @@ const (
 	stateDone
 )
 
+// subModel is implemented by all sub-models (help, first-run, etc.).
+type subModel interface {
+	Update(tea.Msg) (tea.Cmd, shared.Transition)
+	View() string
+}
+
 const breadcrumbHeight = 3
 
 // Model is the thin orchestrator.
@@ -57,7 +63,7 @@ type Model struct {
 	instrumentsSetupFn instruments.SetupFunc
 
 	// sub-models
-	modeSelect          *modeSelectModel
+	modeSelect          *ModeSelectModel
 	kitsFirstRun        *kits.FirstRunModel
 	kitsScan            *kits.ScanModel
 	kitsPreview         *kits.PreviewModel
@@ -66,8 +72,8 @@ type Model struct {
 	instrumentsModel    *instruments.Model
 
 	// help
-	helpContent string
-	helpPrev    appState
+	help     subModel
+	helpPrev appState
 
 	// final results (read after Tea exits)
 	KitCount    int
@@ -96,7 +102,7 @@ func NewModel(baseDir, kitsSrcDir, instSrcDir, destDir string, cfg *config.Confi
 		m.initInstruments()
 	default:
 		m.state = stateModeSelect
-		m.modeSelect = newModeSelectModel()
+		m.modeSelect = NewModeSelectModel()
 	}
 
 	return m
@@ -135,15 +141,15 @@ func (m Model) Init() tea.Cmd {
 	return nil
 }
 
-// helpContentForMode returns the usage text for the current mode.
-func (m Model) helpContentForMode() string {
+// newHelpForMode returns the help model for the current mode.
+func (m Model) newHelpForMode() subModel {
 	switch m.mode {
 	case ModeKits:
-		return kits.RenderHelp(m.baseDir)
+		return kits.NewHelpModel(m.baseDir)
 	case ModeInstruments:
-		return instruments.RenderHelp(m.baseDir)
+		return instruments.NewHelpModel(m.baseDir)
 	default:
-		return RenderGeneralUsage(m.baseDir)
+		return shared.NewHelpModel(RenderGeneralUsage(m.baseDir))
 	}
 }
 
@@ -162,8 +168,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.width = msg.Width
 		m.height = msg.Height
 		if m.modeSelect != nil {
-			m.modeSelect.width = msg.Width
-			m.modeSelect.height = msg.Height
+			m.modeSelect.Resize(msg.Width, msg.Height)
 		}
 		if m.kitsPreview != nil {
 			m.kitsPreview.Resize(msg.Width, msg.Height-breadcrumbHeight)
@@ -176,22 +181,22 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	// Handle help state
 	if m.state == stateHelp {
-		if kp, ok := msg.(tea.KeyPressMsg); ok {
-			switch kp.String() {
-			case "ctrl+c":
-				m.Aborted = true
-				return m, tea.Quit
-			default:
-				m.state = m.helpPrev
-				return m, nil
-			}
+		cmd, tr := m.help.Update(msg)
+		switch tr.Phase {
+		case shared.Abort:
+			m.Aborted = true
+			return m, tea.Quit
+		case shared.Back:
+			m.state = m.helpPrev
+			m.help = nil
+			return m, nil
 		}
-		return m, nil
+		return m, cmd
 	}
 
 	// Intercept "?" for help in interactive states
 	if kp, ok := msg.(tea.KeyPressMsg); ok && kp.String() == "?" && m.canShowHelp() {
-		m.helpContent = m.helpContentForMode()
+		m.help = m.newHelpForMode()
 		m.helpPrev = m.state
 		m.state = stateHelp
 		return m, nil
@@ -202,7 +207,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	switch m.state {
 	case stateModeSelect:
-		cmd, tr = m.modeSelect.update(msg)
+		cmd, tr = m.modeSelect.Update(msg)
 	case stateKitsFirstRun:
 		cmd, tr = m.kitsFirstRun.Update(msg)
 	case stateKitsScanning:
@@ -301,13 +306,13 @@ func (m Model) retreatPhase() (tea.Model, tea.Cmd) {
 		m.kitsScan = nil
 		m.kitsPreview = nil
 		m.state = stateModeSelect
-		m.modeSelect = newModeSelectModel()
+		m.modeSelect = NewModeSelectModel()
 		return m, nil
 	case stateInstrumentsFirstRun, stateInstruments:
 		m.instrumentsFirstRun = nil
 		m.instrumentsModel = nil
 		m.state = stateModeSelect
-		m.modeSelect = newModeSelectModel()
+		m.modeSelect = NewModeSelectModel()
 		return m, nil
 	}
 
@@ -346,7 +351,7 @@ func (m Model) View() tea.View {
 	var s string
 	switch m.state {
 	case stateModeSelect:
-		s = m.modeSelect.view()
+		s = m.modeSelect.View()
 	case stateKitsFirstRun:
 		s = m.kitsFirstRun.View()
 	case stateKitsScanning:
@@ -360,7 +365,7 @@ func (m Model) View() tea.View {
 	case stateInstruments:
 		s = m.instrumentsModel.View()
 	case stateHelp:
-		s = m.helpContent + "\n" + shared.Dim.Render("Press any key to go back")
+		s = m.help.View()
 	case stateDone:
 		s = ""
 	}

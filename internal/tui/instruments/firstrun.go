@@ -31,7 +31,7 @@ func (m *FirstRunModel) Update(msg tea.Msg) (tea.Cmd, shared.Transition) {
 }
 
 func (m *FirstRunModel) View() string {
-	return RenderHelp(m.baseDir) + "\n" +
+	return renderHelp(m.baseDir) + "\n" +
 		"Example directories have been created in Instruments/ to demonstrate the structure.\n" +
 		"Continue? [Y/n] "
 }

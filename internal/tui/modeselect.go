@@ -25,17 +25,22 @@ const (
 	minHeight = 40
 )
 
-type modeSelectModel struct {
+type ModeSelectModel struct {
 	cursor int
 	width  int
 	height int
 }
 
-func newModeSelectModel() *modeSelectModel {
-	return &modeSelectModel{}
+func NewModeSelectModel() *ModeSelectModel {
+	return &ModeSelectModel{}
 }
 
-func (m *modeSelectModel) update(msg tea.Msg) (tea.Cmd, shared.Transition) {
+func (m *ModeSelectModel) Resize(w, h int) {
+	m.width = w
+	m.height = h
+}
+
+func (m *ModeSelectModel) Update(msg tea.Msg) (tea.Cmd, shared.Transition) {
 	kp, ok := msg.(tea.KeyPressMsg)
 	if !ok {
 		return nil, shared.Transition{}
@@ -57,7 +62,7 @@ func (m *modeSelectModel) update(msg tea.Msg) (tea.Cmd, shared.Transition) {
 	return nil, shared.Transition{}
 }
 
-func (m *modeSelectModel) view() string {
+func (m *ModeSelectModel) View() string {
 	var b strings.Builder
 	logo := shared.Bold.Render(
 		"  _ __ ___   __ _  ___ _ __\n" +
