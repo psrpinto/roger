@@ -3,15 +3,17 @@ package instruments
 import (
 	tea "charm.land/bubbletea/v2"
 
+	"roger/internal/examples"
 	"roger/internal/tui/shared"
 )
 
 type FirstRunModel struct {
 	baseDir string
+	srcDir  string
 }
 
-func NewFirstRunModel(baseDir string) *FirstRunModel {
-	return &FirstRunModel{baseDir: baseDir}
+func NewFirstRunModel(baseDir, srcDir string) *FirstRunModel {
+	return &FirstRunModel{baseDir: baseDir, srcDir: srcDir}
 }
 
 func (m *FirstRunModel) Update(msg tea.Msg) (tea.Cmd, shared.Transition) {
@@ -21,9 +23,10 @@ func (m *FirstRunModel) Update(msg tea.Msg) (tea.Cmd, shared.Transition) {
 	}
 	switch kp.String() {
 	case "y", "Y", "enter":
-		return nil, shared.Transition{Phase: shared.Next, Data: true}
+		examples.CreateExampleInstrumentDirs(m.srcDir)
+		return nil, shared.Transition{Phase: shared.Next}
 	case "n", "N":
-		return nil, shared.Transition{Phase: shared.Next, Data: false}
+		return nil, shared.Transition{Phase: shared.Next}
 	case "esc", "ctrl+c":
 		return nil, shared.Transition{Phase: shared.Back}
 	}

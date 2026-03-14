@@ -56,14 +56,12 @@ type Model struct {
 	height     int
 
 	// kits-specific state
-	kitsSetupFn        kits.SetupFunc
-	kitsCreateExamples func() []string
-	topLevelDirs       []string
-	padStyles          [16]lipgloss.Style
+	kitsSetupFn  kits.SetupFunc
+	topLevelDirs []string
+	padStyles    [16]lipgloss.Style
 
 	// instruments-specific state
-	instrumentsSetupFn        instruments.SetupFunc
-	instrumentsCreateExamples func() []string
+	instrumentsSetupFn instruments.SetupFunc
 
 	// sub-models
 	home                *HomeModel
@@ -116,10 +114,9 @@ func (m *Model) initKits() {
 	ks := m.kitsSetupFn()
 	m.topLevelDirs = ks.TopLevelDirs
 	m.padStyles = ks.PadStyles
-	m.kitsCreateExamples = ks.CreateExamples
 	if ks.IsFirstRun {
 		m.state = stateKitsFirstRun
-		m.kitsFirstRun = kits.NewFirstRunModel(m.baseDir)
+		m.kitsFirstRun = kits.NewFirstRunModel(m.baseDir, m.kitsSrcDir)
 	} else {
 		m.state = stateKitsHome
 		m.kitsHome = kits.NewHomeModel()
@@ -128,10 +125,9 @@ func (m *Model) initKits() {
 
 func (m *Model) initInstruments() {
 	is := m.instrumentsSetupFn()
-	m.instrumentsCreateExamples = is.CreateExamples
 	if is.IsFirstRun {
 		m.state = stateInstrumentsFirstRun
-		m.instrumentsFirstRun = instruments.NewFirstRunModel(m.baseDir)
+		m.instrumentsFirstRun = instruments.NewFirstRunModel(m.baseDir, m.instSrcDir)
 	} else {
 		m.state = stateInstrumentsHome
 		m.instrumentsHome = instruments.NewHomeModel()
@@ -265,10 +261,6 @@ func (m *Model) advancePhase(data any) (tea.Model, tea.Cmd) {
 		return m, m.kitsScan.Init()
 
 	case stateKitsFirstRun:
-		if data.(bool) && m.kitsCreateExamples != nil {
-			m.topLevelDirs = m.kitsCreateExamples()
-		}
-		m.kitsCreateExamples = nil
 		m.state = stateKitsHome
 		m.kitsHome = kits.NewHomeModel()
 		return m, nil
@@ -302,10 +294,6 @@ func (m *Model) advancePhase(data any) (tea.Model, tea.Cmd) {
 		return m, tea.Quit
 
 	case stateInstrumentsFirstRun:
-		if data.(bool) && m.instrumentsCreateExamples != nil {
-			m.instrumentsCreateExamples()
-		}
-		m.instrumentsCreateExamples = nil
 		m.state = stateInstrumentsHome
 		m.instrumentsHome = instruments.NewHomeModel()
 		return m, nil
