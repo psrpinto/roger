@@ -31,28 +31,15 @@ func main() {
 		}
 	}
 
-	templatePath := filepath.Join(baseDir, "template.xpm")
-	if _, err := os.Stat(templatePath); os.IsNotExist(err) {
-		os.WriteFile(templatePath, mpc.ProgramTemplate, 0o644)
-	}
-	expansionPath := filepath.Join(baseDir, "expansion.xml")
-	if _, err := os.Stat(expansionPath); os.IsNotExist(err) {
-		os.WriteFile(expansionPath, mpc.ExpansionTemplate, 0o644)
-	}
-
-	mpc.LoadCustomTemplate(baseDir)
-	mpc.LoadCustomExpansionTemplate(baseDir)
-
 	cfg, err := config.LoadOrCreate(baseDir)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %s\n", err)
 		os.Exit(1)
 	}
 
-	padStyles := mpc.ExtractPadStyles()
-
 	// Parse mode and pack arguments
 	var mode tui.Mode
+	var packArgs []string
 	args := os.Args[1:]
 	if len(args) > 0 {
 		switch args[0] {
@@ -64,8 +51,6 @@ func main() {
 			args = args[1:]
 		}
 	}
-
-	var topLevelDirs []string
 	if len(args) > 0 {
 		if mode == "" {
 			mode = tui.ModeKits
@@ -76,20 +61,43 @@ func main() {
 				fmt.Fprintf(os.Stderr, "error: pack directory not found: %s\n", packDir)
 				os.Exit(1)
 			}
-			topLevelDirs = append(topLevelDirs, packDir)
+			packArgs = append(packArgs, packDir)
 		}
-	} else if mode == tui.ModeKits || mode == "" {
-		topLevelDirs = sampler.ListSubdirs(srcDir)
 	}
 
-	isFirstRun := false
-	if mode != tui.ModeInstruments && len(args) == 0 && len(topLevelDirs) == 0 {
-		examples.CreateExampleDirs(srcDir)
-		topLevelDirs = sampler.ListSubdirs(srcDir)
-		isFirstRun = true
+	kitsSetupFn := func() tui.KitsSetup {
+		templatePath := filepath.Join(baseDir, "template.xpm")
+		if _, err := os.Stat(templatePath); os.IsNotExist(err) {
+			os.WriteFile(templatePath, mpc.ProgramTemplate, 0o644)
+		}
+		expansionPath := filepath.Join(baseDir, "expansion.xml")
+		if _, err := os.Stat(expansionPath); os.IsNotExist(err) {
+			os.WriteFile(expansionPath, mpc.ExpansionTemplate, 0o644)
+		}
+
+		mpc.LoadCustomTemplate(baseDir)
+		mpc.LoadCustomExpansionTemplate(baseDir)
+
+		topLevelDirs := packArgs
+		if len(topLevelDirs) == 0 {
+			topLevelDirs = sampler.ListSubdirs(srcDir)
+		}
+
+		isFirstRun := false
+		if len(packArgs) == 0 && len(topLevelDirs) == 0 {
+			examples.CreateExampleDirs(srcDir)
+			topLevelDirs = sampler.ListSubdirs(srcDir)
+			isFirstRun = true
+		}
+
+		return tui.KitsSetup{
+			TopLevelDirs: topLevelDirs,
+			PadStyles:    mpc.ExtractPadStyles(),
+			IsFirstRun:   isFirstRun,
+		}
 	}
 
-	m := tui.NewModel(baseDir, srcDir, destDir, topLevelDirs, isFirstRun, padStyles, cfg, mode)
+	m := tui.NewModel(baseDir, srcDir, destDir, cfg, mode, kitsSetupFn)
 	p := tea.NewProgram(m)
 	finalModel, err := p.Run()
 	if err != nil {

@@ -70,18 +70,33 @@ type transition struct {
 	data  any
 }
 
+// KitsSetup holds the results of kits-specific initialization.
+type KitsSetup struct {
+	TopLevelDirs []string
+	PadStyles    [16]lipgloss.Style
+	IsFirstRun   bool
+}
+
+// KitsSetupFunc performs kits-specific initialization (template loading,
+// directory scanning, example creation) and returns the results.
+type KitsSetupFunc func() KitsSetup
+
 // Model is the thin orchestrator.
 type Model struct {
-	state        appState
-	mode         Mode
-	cfg          *config.Config
-	baseDir      string
-	srcDir       string
-	destDir      string
+	state    appState
+	mode     Mode
+	cfg      *config.Config
+	baseDir  string
+	srcDir   string
+	destDir  string
+	width    int
+	height   int
+
+	// kits-specific state
+	kitsSetupFn  KitsSetupFunc
 	topLevelDirs []string
 	padStyles    [16]lipgloss.Style
-	width        int
-	height       int
+	isFirstRun   bool
 
 	modeSelect  *modeSelectModel
 	firstRun    *firstRunModel
@@ -90,54 +105,50 @@ type Model struct {
 	gen         *genModel
 	instruments *instrumentsModel
 
-	isFirstRun bool
-
 	// final results (read after Tea exits)
-	KitCount int
+	KitCount    int
 	SampleCount int
 	TotalSize   int64
 	Aborted     bool
 }
 
-func NewModel(baseDir, srcDir, destDir string, topLevelDirs []string, isFirstRun bool, padStyles [16]lipgloss.Style, cfg *config.Config, mode Mode) Model {
-	var state appState
+func NewModel(baseDir, srcDir, destDir string, cfg *config.Config, mode Mode, kitsSetupFn KitsSetupFunc) Model {
+	m := Model{
+		mode:        mode,
+		cfg:         cfg,
+		baseDir:     baseDir,
+		srcDir:      srcDir,
+		destDir:     destDir,
+		kitsSetupFn: kitsSetupFn,
+	}
+
 	switch mode {
 	case ModeKits:
-		if isFirstRun {
-			state = stateFirstRun
-		} else {
-			state = stateScanning
-		}
+		m.initKits()
 	case ModeInstruments:
-		state = stateInstruments
-	default:
-		state = stateModeSelect
-	}
-
-	m := Model{
-		state:        state,
-		mode:         mode,
-		cfg:          cfg,
-		baseDir:      baseDir,
-		srcDir:       srcDir,
-		destDir:      destDir,
-		topLevelDirs: topLevelDirs,
-		padStyles:    padStyles,
-		isFirstRun:   isFirstRun,
-	}
-
-	switch state {
-	case stateModeSelect:
-		m.modeSelect = newModeSelectModel()
-	case stateFirstRun:
-		m.firstRun = newFirstRunModel(baseDir)
-	case stateScanning:
-		m.scan = newScanModel(topLevelDirs, srcDir, cfg)
-	case stateInstruments:
+		m.state = stateInstruments
 		m.instruments = newInstrumentsModel()
+	default:
+		m.state = stateModeSelect
+		m.modeSelect = newModeSelectModel()
 	}
 
 	return m
+}
+
+func (m *Model) initKits() {
+	ks := m.kitsSetupFn()
+	m.topLevelDirs = ks.TopLevelDirs
+	m.padStyles = ks.PadStyles
+	m.isFirstRun = ks.IsFirstRun
+
+	if m.isFirstRun {
+		m.state = stateFirstRun
+		m.firstRun = newFirstRunModel(m.baseDir)
+	} else {
+		m.state = stateScanning
+		m.scan = newScanModel(m.topLevelDirs, m.srcDir, m.cfg)
+	}
 }
 
 func (m Model) Init() tea.Cmd {
@@ -197,12 +208,8 @@ func (m Model) advancePhase(data any) (tea.Model, tea.Cmd) {
 		m.mode = data.(Mode)
 		switch m.mode {
 		case ModeKits:
-			if m.isFirstRun {
-				m.state = stateFirstRun
-				m.firstRun = newFirstRunModel(m.baseDir)
-			} else {
-				m.state = stateScanning
-				m.scan = newScanModel(m.topLevelDirs, m.srcDir, m.cfg)
+			m.initKits()
+			if m.state == stateScanning {
 				return m, m.scan.init()
 			}
 			return m, nil
