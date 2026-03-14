@@ -23,12 +23,13 @@ type appState int
 
 const (
 	stateHome appState = iota
+	stateKitsHome
 	stateKitsFirstRun
 	stateKitsScanning
 	stateKitsPreview
 	stateKitsGenerating
+	stateInstrumentsHome
 	stateInstrumentsFirstRun
-	stateInstruments
 	stateHelp
 	stateDone
 )
@@ -63,13 +64,14 @@ type Model struct {
 	instrumentsSetupFn instruments.SetupFunc
 
 	// sub-models
-	home          *HomeModel
+	home                *HomeModel
+	kitsHome            *kits.HomeModel
 	kitsFirstRun        *kits.FirstRunModel
 	kitsScan            *kits.ScanModel
 	kitsPreview         *kits.PreviewModel
 	kitsGen             *kits.GenModel
 	instrumentsFirstRun *instruments.FirstRunModel
-	instrumentsModel    *instruments.Model
+	instrumentsHome    *instruments.HomeModel
 
 	// help
 	help     subModel
@@ -109,27 +111,13 @@ func NewModel(baseDir, kitsSrcDir, instSrcDir, destDir string, cfg *config.Confi
 }
 
 func (m *Model) initKits() {
-	ks := m.kitsSetupFn()
-	m.topLevelDirs = ks.TopLevelDirs
-	m.padStyles = ks.PadStyles
-	if ks.IsFirstRun {
-		m.state = stateKitsFirstRun
-		m.kitsFirstRun = kits.NewFirstRunModel(m.baseDir)
-	} else {
-		m.state = stateKitsScanning
-		m.kitsScan = kits.NewScanModel(m.topLevelDirs, m.kitsSrcDir, m.cfg)
-	}
+	m.state = stateKitsHome
+	m.kitsHome = kits.NewHomeModel()
 }
 
 func (m *Model) initInstruments() {
-	is := m.instrumentsSetupFn()
-	if is.IsFirstRun {
-		m.state = stateInstrumentsFirstRun
-		m.instrumentsFirstRun = instruments.NewFirstRunModel(m.baseDir)
-	} else {
-		m.state = stateInstruments
-		m.instrumentsModel = instruments.NewModel()
-	}
+	m.state = stateInstrumentsHome
+	m.instrumentsHome = instruments.NewHomeModel()
 }
 
 func (m *Model) Init() tea.Cmd {
@@ -155,7 +143,7 @@ func (m *Model) newHelpForMode() subModel {
 // canShowHelp returns true for interactive states where help makes sense.
 func (m *Model) canShowHelp() bool {
 	switch m.state {
-	case stateHome, stateKitsFirstRun, stateKitsPreview, stateInstrumentsFirstRun, stateInstruments:
+	case stateHome, stateKitsHome, stateKitsFirstRun, stateKitsPreview, stateInstrumentsFirstRun, stateInstrumentsHome:
 		return true
 	}
 	return false
@@ -207,6 +195,8 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch m.state {
 	case stateHome:
 		cmd, tr = m.home.Update(msg)
+	case stateKitsHome:
+		cmd, tr = m.kitsHome.Update(msg)
 	case stateKitsFirstRun:
 		cmd, tr = m.kitsFirstRun.Update(msg)
 	case stateKitsScanning:
@@ -217,8 +207,8 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		cmd, tr = m.kitsGen.Update(msg)
 	case stateInstrumentsFirstRun:
 		cmd, tr = m.instrumentsFirstRun.Update(msg)
-	case stateInstruments:
-		cmd, tr = m.instrumentsModel.Update(msg)
+	case stateInstrumentsHome:
+		cmd, tr = m.instrumentsHome.Update(msg)
 	}
 
 	switch tr.Phase {
@@ -251,6 +241,19 @@ func (m *Model) advancePhase(data any) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 
+	case stateKitsHome:
+		ks := m.kitsSetupFn()
+		m.topLevelDirs = ks.TopLevelDirs
+		m.padStyles = ks.PadStyles
+		if ks.IsFirstRun {
+			m.state = stateKitsFirstRun
+			m.kitsFirstRun = kits.NewFirstRunModel(m.baseDir)
+			return m, nil
+		}
+		m.state = stateKitsScanning
+		m.kitsScan = kits.NewScanModel(m.topLevelDirs, m.kitsSrcDir, m.cfg)
+		return m, m.kitsScan.Init()
+
 	case stateKitsFirstRun:
 		m.state = stateKitsScanning
 		m.kitsScan = kits.NewScanModel(m.topLevelDirs, m.kitsSrcDir, m.cfg)
@@ -280,12 +283,17 @@ func (m *Model) advancePhase(data any) (tea.Model, tea.Cmd) {
 		m.state = stateDone
 		return m, tea.Quit
 
-	case stateInstrumentsFirstRun:
-		m.state = stateInstruments
-		m.instrumentsModel = instruments.NewModel()
-		return m, nil
+	case stateInstrumentsHome:
+		is := m.instrumentsSetupFn()
+		if is.IsFirstRun {
+			m.state = stateInstrumentsFirstRun
+			m.instrumentsFirstRun = instruments.NewFirstRunModel(m.baseDir)
+			return m, nil
+		}
+		m.state = stateDone
+		return m, tea.Quit
 
-	case stateInstruments:
+	case stateInstrumentsFirstRun:
 		m.state = stateDone
 		return m, tea.Quit
 	}
@@ -300,18 +308,28 @@ func (m *Model) retreatPhase() (tea.Model, tea.Cmd) {
 	}
 
 	switch m.state {
-	case stateKitsFirstRun, stateKitsPreview:
-		m.kitsFirstRun = nil
-		m.kitsScan = nil
-		m.kitsPreview = nil
+	case stateKitsHome:
+		m.kitsHome = nil
 		m.state = stateHome
 		m.home = NewHomeModel()
 		return m, nil
-	case stateInstrumentsFirstRun, stateInstruments:
-		m.instrumentsFirstRun = nil
-		m.instrumentsModel = nil
+	case stateKitsFirstRun, stateKitsPreview:
+		m.kitsHome = nil
+		m.kitsFirstRun = nil
+		m.kitsScan = nil
+		m.kitsPreview = nil
+		m.state = stateKitsHome
+		m.kitsHome = kits.NewHomeModel()
+		return m, nil
+	case stateInstrumentsHome:
+		m.instrumentsHome = nil
 		m.state = stateHome
 		m.home = NewHomeModel()
+		return m, nil
+	case stateInstrumentsFirstRun:
+		m.instrumentsFirstRun = nil
+		m.state = stateInstrumentsHome
+		m.instrumentsHome = instruments.NewHomeModel()
 		return m, nil
 	}
 
@@ -320,6 +338,8 @@ func (m *Model) retreatPhase() (tea.Model, tea.Cmd) {
 
 func (m *Model) breadcrumb() []string {
 	switch m.state {
+	case stateKitsHome:
+		return []string{"roger", "Kits"}
 	case stateKitsFirstRun:
 		return []string{"roger", "Kits", "Setup"}
 	case stateKitsScanning:
@@ -330,7 +350,7 @@ func (m *Model) breadcrumb() []string {
 		return []string{"roger", "Kits", "Generating"}
 	case stateInstrumentsFirstRun:
 		return []string{"roger", "Instruments", "Setup"}
-	case stateInstruments:
+	case stateInstrumentsHome:
 		return []string{"roger", "Instruments"}
 	case stateHelp:
 		switch m.mode {
@@ -353,6 +373,8 @@ func (m *Model) View() tea.View {
 	switch m.state {
 	case stateHome:
 		s = m.home.View()
+	case stateKitsHome:
+		s = m.kitsHome.View()
 	case stateKitsFirstRun:
 		s = m.kitsFirstRun.View()
 	case stateKitsScanning:
@@ -363,8 +385,8 @@ func (m *Model) View() tea.View {
 		s = m.kitsGen.View()
 	case stateInstrumentsFirstRun:
 		s = m.instrumentsFirstRun.View()
-	case stateInstruments:
-		s = m.instrumentsModel.View()
+	case stateInstrumentsHome:
+		s = m.instrumentsHome.View()
 	case stateHelp:
 		s = m.help.View()
 	case stateDone:

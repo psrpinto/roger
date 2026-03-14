@@ -6,13 +6,13 @@ import (
 	"roger/internal/tui/shared"
 )
 
-type Model struct{}
+type HomeModel struct{}
 
-func NewModel() *Model {
-	return &Model{}
+func NewHomeModel() *HomeModel {
+	return &HomeModel{}
 }
 
-func (m *Model) Update(msg tea.Msg) (tea.Cmd, shared.Transition) {
+func (m *HomeModel) Update(msg tea.Msg) (tea.Cmd, shared.Transition) {
 	kp, ok := msg.(tea.KeyPressMsg)
 	if !ok {
 		return nil, shared.Transition{}
@@ -27,6 +27,6 @@ func (m *Model) Update(msg tea.Msg) (tea.Cmd, shared.Transition) {
 	}
 }
 
-func (m *Model) View() string {
+func (m *HomeModel) View() string {
 	return shared.Bold.Render("Instruments") + " — Coming soon.\n\nPress any key to exit."
 }
