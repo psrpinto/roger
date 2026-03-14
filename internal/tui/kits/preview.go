@@ -1,4 +1,4 @@
-package tui
+package kits
 
 import (
 	"strings"
@@ -9,55 +9,56 @@ import (
 
 	"roger/internal/config"
 	"roger/internal/kit"
+	"roger/internal/tui/shared"
 )
 
-type previewModel struct {
+type PreviewModel struct {
 	viewport viewport.Model
 	footer   string
 	packs    []kit.Pack
 }
 
-func newPreviewModel(packs []kit.Pack, emptyPacks, wrongSampleCount []string, padStyles [16]lipgloss.Style, cfg *config.Config, width, height int) *previewModel {
-	footer := "\n" + renderLegend() + renderWarnings(packs, emptyPacks, wrongSampleCount) + "\nGenerate output files? [Y/n] "
+func NewPreviewModel(packs []kit.Pack, emptyPacks, wrongSampleCount []string, padStyles [16]lipgloss.Style, cfg *config.Config, width, height int) *PreviewModel {
+	footer := "\n" + RenderLegend() + RenderWarnings(packs, emptyPacks, wrongSampleCount) + "\nGenerate output files? [Y/n] "
 	footerHeight := strings.Count(footer, "\n") + 1
 
-	content := renderGrids(packs, padStyles, cfg.DrumTypes, cfg.PadLayout)
+	content := RenderGrids(packs, padStyles, cfg.DrumTypes, cfg.PadLayout)
 	vp := viewport.New(
 		viewport.WithWidth(width),
 		viewport.WithHeight(height-footerHeight),
 	)
 	vp.SetContent(content)
 
-	return &previewModel{
+	return &PreviewModel{
 		viewport: vp,
 		footer:   footer,
 		packs:    packs,
 	}
 }
 
-func (m *previewModel) resize(width, height int) {
+func (m *PreviewModel) Resize(width, height int) {
 	footerHeight := strings.Count(m.footer, "\n") + 1
 	m.viewport.SetWidth(width)
 	m.viewport.SetHeight(height - footerHeight)
 }
 
-func (m *previewModel) update(msg tea.Msg) (tea.Cmd, transition) {
+func (m *PreviewModel) Update(msg tea.Msg) (tea.Cmd, shared.Transition) {
 	kp, ok := msg.(tea.KeyPressMsg)
 	if !ok {
-		return nil, transition{}
+		return nil, shared.Transition{}
 	}
 	switch kp.String() {
 	case "y", "Y", "enter":
-		return nil, transition{phase: phaseNext, data: m.packs}
+		return nil, shared.Transition{Phase: shared.Next, Data: m.packs}
 	case "n", "N", "esc", "q", "ctrl+c":
-		return nil, transition{phase: phaseAbort}
+		return nil, shared.Transition{Phase: shared.Abort}
 	default:
 		var cmd tea.Cmd
 		m.viewport, cmd = m.viewport.Update(msg)
-		return cmd, transition{}
+		return cmd, shared.Transition{}
 	}
 }
 
-func (m *previewModel) view() string {
+func (m *PreviewModel) View() string {
 	return m.viewport.View() + m.footer
 }

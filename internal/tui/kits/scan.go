@@ -1,4 +1,4 @@
-package tui
+package kits
 
 import (
 	"fmt"
@@ -14,9 +14,20 @@ import (
 	"roger/internal/config"
 	"roger/internal/kit"
 	"roger/internal/sampler"
+	"roger/internal/tui/shared"
 )
 
-type scanModel struct {
+type ScanDoneMsg struct {
+	Packs            []kit.Pack
+	EmptyPacks       []string
+	WrongSampleCount []string
+}
+
+type scanProgressMsg struct {
+	done, total int
+}
+
+type ScanModel struct {
 	topLevelDirs []string
 	srcDir       string
 	cfg          *config.Config
@@ -26,12 +37,12 @@ type scanModel struct {
 	spinner      spinner.Model
 }
 
-func newScanModel(topLevelDirs []string, srcDir string, cfg *config.Config) *scanModel {
+func NewScanModel(topLevelDirs []string, srcDir string, cfg *config.Config) *ScanModel {
 	s := spinner.New(
 		spinner.WithSpinner(spinner.Dot),
 		spinner.WithStyle(lipgloss.NewStyle().Foreground(lipgloss.Color("6"))),
 	)
-	return &scanModel{
+	return &ScanModel{
 		topLevelDirs: topLevelDirs,
 		srcDir:       srcDir,
 		cfg:          cfg,
@@ -40,7 +51,7 @@ func newScanModel(topLevelDirs []string, srcDir string, cfg *config.Config) *sca
 	}
 }
 
-func (m *scanModel) init() tea.Cmd {
+func (m *ScanModel) Init() tea.Cmd {
 	return tea.Batch(
 		m.spinner.Tick,
 		scanPacksCmd(m.scanCh, m.topLevelDirs, m.srcDir, m.cfg),
@@ -48,27 +59,27 @@ func (m *scanModel) init() tea.Cmd {
 	)
 }
 
-func (m *scanModel) update(msg tea.Msg) (tea.Cmd, transition) {
+func (m *ScanModel) Update(msg tea.Msg) (tea.Cmd, shared.Transition) {
 	switch msg := msg.(type) {
 	case tea.KeyPressMsg:
 		if msg.String() == "ctrl+c" {
-			return nil, transition{phase: phaseAbort}
+			return nil, shared.Transition{Phase: shared.Abort}
 		}
 	case scanProgressMsg:
 		m.progress = msg.done
 		m.total = msg.total
-		return waitForScanProgress(m.scanCh), transition{}
-	case scanDoneMsg:
-		return nil, transition{phase: phaseNext, data: msg}
+		return waitForScanProgress(m.scanCh), shared.Transition{}
+	case ScanDoneMsg:
+		return nil, shared.Transition{Phase: shared.Next, Data: msg}
 	case spinner.TickMsg:
 		var cmd tea.Cmd
 		m.spinner, cmd = m.spinner.Update(msg)
-		return cmd, transition{}
+		return cmd, shared.Transition{}
 	}
-	return nil, transition{}
+	return nil, shared.Transition{}
 }
 
-func (m *scanModel) view() string {
+func (m *ScanModel) View() string {
 	return m.spinner.View() + scanningStatus(m.progress, m.total)
 }
 
@@ -196,10 +207,10 @@ func scanPacksCmd(ch chan<- scanProgressMsg, topLevelDirs []string, srcDir strin
 			packs = append(packs, kit.Pack{Name: packName, Dir: topDir, Groups: groups})
 		}
 
-		return scanDoneMsg{
-			packs:            packs,
-			emptyPacks:       emptyPacks,
-			wrongSampleCount: wrongSampleCount,
+		return ScanDoneMsg{
+			Packs:            packs,
+			EmptyPacks:       emptyPacks,
+			WrongSampleCount: wrongSampleCount,
 		}
 	}
 }

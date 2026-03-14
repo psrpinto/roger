@@ -1,4 +1,4 @@
-package tui
+package kits
 
 import (
 	"fmt"
@@ -12,9 +12,20 @@ import (
 	"roger/internal/kit"
 	"roger/internal/mpc"
 	"roger/internal/sampler"
+	"roger/internal/tui/shared"
 )
 
-type genModel struct {
+type GenDoneMsg struct {
+	KitCount    int
+	SampleCount int
+	TotalSize   int64
+}
+
+type genProgressMsg struct {
+	done, total int
+}
+
+type GenModel struct {
 	packs     []kit.Pack
 	destDir   string
 	padLayout [16][]string
@@ -24,12 +35,12 @@ type genModel struct {
 	spinner   spinner.Model
 }
 
-func newGenModel(packs []kit.Pack, destDir string, padLayout [16][]string) *genModel {
+func NewGenModel(packs []kit.Pack, destDir string, padLayout [16][]string) *GenModel {
 	s := spinner.New(
 		spinner.WithSpinner(spinner.Dot),
 		spinner.WithStyle(lipgloss.NewStyle().Foreground(lipgloss.Color("6"))),
 	)
-	return &genModel{
+	return &GenModel{
 		packs:     packs,
 		destDir:   destDir,
 		padLayout: padLayout,
@@ -38,7 +49,7 @@ func newGenModel(packs []kit.Pack, destDir string, padLayout [16][]string) *genM
 	}
 }
 
-func (m *genModel) init() tea.Cmd {
+func (m *GenModel) Init() tea.Cmd {
 	return tea.Batch(
 		m.spinner.Tick,
 		generatePacksCmd(m.genCh, m.packs, m.destDir, m.padLayout),
@@ -46,27 +57,27 @@ func (m *genModel) init() tea.Cmd {
 	)
 }
 
-func (m *genModel) update(msg tea.Msg) (tea.Cmd, transition) {
+func (m *GenModel) Update(msg tea.Msg) (tea.Cmd, shared.Transition) {
 	switch msg := msg.(type) {
 	case tea.KeyPressMsg:
 		if msg.String() == "ctrl+c" {
-			return nil, transition{phase: phaseAbort}
+			return nil, shared.Transition{Phase: shared.Abort}
 		}
 	case genProgressMsg:
 		m.progress = msg.done
 		m.total = msg.total
-		return waitForGenProgress(m.genCh), transition{}
-	case genDoneMsg:
-		return nil, transition{phase: phaseNext, data: msg}
+		return waitForGenProgress(m.genCh), shared.Transition{}
+	case GenDoneMsg:
+		return nil, shared.Transition{Phase: shared.Next, Data: msg}
 	case spinner.TickMsg:
 		var cmd tea.Cmd
 		m.spinner, cmd = m.spinner.Update(msg)
-		return cmd, transition{}
+		return cmd, shared.Transition{}
 	}
-	return nil, transition{}
+	return nil, shared.Transition{}
 }
 
-func (m *genModel) view() string {
+func (m *GenModel) View() string {
 	return m.spinner.View() + generatingStatus(m.progress, m.total)
 }
 
@@ -94,7 +105,7 @@ func generatePacksCmd(ch chan<- genProgressMsg, packs []kit.Pack, destDir string
 			previewDir := filepath.Join(packOutDir, "[Previews]")
 			for _, dir := range []string{packOutDir, previewDir} {
 				if err := os.MkdirAll(dir, 0o755); err != nil {
-					return errMsg{err: fmt.Errorf("creating output directory: %w", err)}
+					return shared.ErrMsg{Err: fmt.Errorf("creating output directory: %w", err)}
 				}
 			}
 
@@ -102,10 +113,10 @@ func generatePacksCmd(ch chan<- genProgressMsg, packs []kit.Pack, destDir string
 				for _, k := range group.Kits {
 					xpm, err := mpc.RenderProgramXml(k.Name, [][16]kit.Sample{k.Samples})
 					if err != nil {
-						return errMsg{err: err}
+						return shared.ErrMsg{Err: err}
 					}
 					if err := os.WriteFile(filepath.Join(packOutDir, k.Name+".xpm"), xpm, 0644); err != nil {
-						return errMsg{err: err}
+						return shared.ErrMsg{Err: err}
 					}
 					totalSize += int64(len(xpm))
 
@@ -152,10 +163,10 @@ func generatePacksCmd(ch chan<- genProgressMsg, packs []kit.Pack, destDir string
 
 					xpm, err := mpc.RenderProgramXml(programName, banks)
 					if err != nil {
-						return errMsg{err: err}
+						return shared.ErrMsg{Err: err}
 					}
 					if err := os.WriteFile(filepath.Join(packOutDir, programName+".xpm"), xpm, 0644); err != nil {
-						return errMsg{err: err}
+						return shared.ErrMsg{Err: err}
 					}
 					totalSize += int64(len(xpm))
 
@@ -181,7 +192,7 @@ func generatePacksCmd(ch chan<- genProgressMsg, packs []kit.Pack, destDir string
 							continue
 						}
 						if err := sampler.CopyFile(s.SourcePath, destPath); err != nil {
-							return errMsg{err: fmt.Errorf("copying %s: %w", s.Filename, err)}
+							return shared.ErrMsg{Err: fmt.Errorf("copying %s: %w", s.Filename, err)}
 						}
 						if info, err := os.Stat(destPath); err == nil {
 							totalSize += info.Size()
@@ -199,10 +210,10 @@ func generatePacksCmd(ch chan<- genProgressMsg, packs []kit.Pack, destDir string
 
 			expansionXml, err := mpc.RenderExpansionXml(expansion)
 			if err != nil {
-				return errMsg{err: err}
+				return shared.ErrMsg{Err: err}
 			}
 			if err := os.WriteFile(filepath.Join(packOutDir, "Expansion.xml"), expansionXml, 0644); err != nil {
-				return errMsg{err: err}
+				return shared.ErrMsg{Err: err}
 			}
 			totalSize += int64(len(expansionXml))
 
@@ -216,10 +227,10 @@ func generatePacksCmd(ch chan<- genProgressMsg, packs []kit.Pack, destDir string
 			}
 		}
 
-		return genDoneMsg{
-			kitCount:    kitCount,
-			sampleCount: totalSampleCount,
-			totalSize:   totalSize,
+		return GenDoneMsg{
+			KitCount:    kitCount,
+			SampleCount: totalSampleCount,
+			TotalSize:   totalSize,
 		}
 	}
 }

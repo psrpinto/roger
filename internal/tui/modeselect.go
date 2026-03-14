@@ -5,6 +5,8 @@ import (
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
+
+	"roger/internal/tui/shared"
 )
 
 type modeOption struct {
@@ -26,10 +28,10 @@ func newModeSelectModel() *modeSelectModel {
 	return &modeSelectModel{}
 }
 
-func (m *modeSelectModel) update(msg tea.Msg) (tea.Cmd, transition) {
+func (m *modeSelectModel) update(msg tea.Msg) (tea.Cmd, shared.Transition) {
 	kp, ok := msg.(tea.KeyPressMsg)
 	if !ok {
-		return nil, transition{}
+		return nil, shared.Transition{}
 	}
 	switch kp.String() {
 	case "up", "k":
@@ -41,23 +43,23 @@ func (m *modeSelectModel) update(msg tea.Msg) (tea.Cmd, transition) {
 			m.cursor++
 		}
 	case "enter":
-		return nil, transition{phase: phaseNext, data: modeOptions[m.cursor].mode}
+		return nil, shared.Transition{Phase: shared.Next, Data: modeOptions[m.cursor].mode}
 	case "esc", "ctrl+c":
-		return nil, transition{phase: phaseAbort}
+		return nil, shared.Transition{Phase: shared.Abort}
 	}
-	return nil, transition{}
+	return nil, shared.Transition{}
 }
 
 func (m *modeSelectModel) view() string {
 	var b strings.Builder
-	fmt.Fprintln(&b, styleBold.Render("Select mode:"))
+	fmt.Fprintln(&b, shared.Bold.Render("Select mode:"))
 	fmt.Fprintln(&b)
 	for i, opt := range modeOptions {
 		if i == m.cursor {
-			fmt.Fprintf(&b, "  %s %s\n", styleBold.Render(">"), opt.label)
-			fmt.Fprintf(&b, "    %s\n", styleCyan.Faint(true).Render(opt.description))
+			fmt.Fprintf(&b, "  %s %s\n", shared.Bold.Render(">"), opt.label)
+			fmt.Fprintf(&b, "    %s\n", shared.Cyan.Faint(true).Render(opt.description))
 		} else {
-			fmt.Fprintf(&b, "    %s\n", styleDim.Render(opt.label))
+			fmt.Fprintf(&b, "    %s\n", shared.Dim.Render(opt.label))
 		}
 	}
 	return b.String()

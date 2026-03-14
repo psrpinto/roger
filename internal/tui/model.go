@@ -6,6 +6,9 @@ import (
 
 	"roger/internal/config"
 	"roger/internal/kit"
+	"roger/internal/tui/instruments"
+	"roger/internal/tui/kits"
+	"roger/internal/tui/shared"
 )
 
 // Mode represents the top-level operating mode.
@@ -20,90 +23,43 @@ type appState int
 
 const (
 	stateModeSelect appState = iota
-	stateFirstRun
-	stateScanning
-	statePreview
-	stateGenerating
+	stateKitsFirstRun
+	stateKitsScanning
+	stateKitsPreview
+	stateKitsGenerating
+	stateInstrumentsFirstRun
 	stateInstruments
 	stateDone
 )
 
-// Messages (inter-phase contracts)
-
-type scanProgressMsg struct {
-	done, total int
-}
-
-type scanDoneMsg struct {
-	packs            []kit.Pack
-	emptyPacks       []string
-	wrongSampleCount []string
-}
-
-type genProgressMsg struct {
-	done, total int
-}
-
-type genDoneMsg struct {
-	kitCount    int
-	sampleCount int
-	totalSize   int64
-}
-
-type errMsg struct {
-	err error
-}
-
-func (e errMsg) Error() string { return e.err.Error() }
-
-// phaseTransition signals from sub-models to the parent.
-type phaseTransition int
-
-const (
-	phaseStay phaseTransition = iota
-	phaseNext
-	phaseAbort
-)
-
-type transition struct {
-	phase phaseTransition
-	data  any
-}
-
-// KitsSetup holds the results of kits-specific initialization.
-type KitsSetup struct {
-	TopLevelDirs []string
-	PadStyles    [16]lipgloss.Style
-	IsFirstRun   bool
-}
-
-// KitsSetupFunc performs kits-specific initialization (template loading,
-// directory scanning, example creation) and returns the results.
-type KitsSetupFunc func() KitsSetup
-
 // Model is the thin orchestrator.
 type Model struct {
-	state    appState
-	mode     Mode
-	cfg      *config.Config
-	baseDir  string
-	srcDir   string
-	destDir  string
-	width    int
-	height   int
+	state      appState
+	mode       Mode
+	cfg        *config.Config
+	baseDir    string
+	kitsSrcDir string
+	instSrcDir string
+	destDir    string
+	width      int
+	height     int
 
 	// kits-specific state
-	kitsSetupFn  KitsSetupFunc
+	kitsSetupFn  kits.SetupFunc
 	topLevelDirs []string
 	padStyles    [16]lipgloss.Style
-	isFirstRun   bool
 
-	modeSelect  *modeSelectModel
-	firstRun    *firstRunModel
-	scan        *scanModel
-	preview     *previewModel
-	gen         *genModel
-	instruments *instrumentsModel
+	// instruments-specific state
+	instrumentsSetupFn instruments.SetupFunc
+
+	// sub-models
+	modeSelect          *modeSelectModel
+	kitsFirstRun        *kits.FirstRunModel
+	kitsScan            *kits.ScanModel
+	kitsPreview         *kits.PreviewModel
+	kitsGen             *kits.GenModel
+	instrumentsFirstRun *instruments.FirstRunModel
+	instrumentsModel    *instruments.Model
 
 	// final results (read after Tea exits)
 	KitCount    int
@@ -112,22 +68,23 @@ type Model struct {
 	Aborted     bool
 }
 
-func NewModel(baseDir, srcDir, destDir string, cfg *config.Config, mode Mode, kitsSetupFn KitsSetupFunc) Model {
+func NewModel(baseDir, kitsSrcDir, instSrcDir, destDir string, cfg *config.Config, mode Mode, kitsSetupFn kits.SetupFunc, instrumentsSetupFn instruments.SetupFunc) Model {
 	m := Model{
-		mode:        mode,
-		cfg:         cfg,
-		baseDir:     baseDir,
-		srcDir:      srcDir,
-		destDir:     destDir,
-		kitsSetupFn: kitsSetupFn,
+		mode:               mode,
+		cfg:                cfg,
+		baseDir:            baseDir,
+		kitsSrcDir:         kitsSrcDir,
+		instSrcDir:         instSrcDir,
+		destDir:            destDir,
+		kitsSetupFn:        kitsSetupFn,
+		instrumentsSetupFn: instrumentsSetupFn,
 	}
 
 	switch mode {
 	case ModeKits:
 		m.initKits()
 	case ModeInstruments:
-		m.state = stateInstruments
-		m.instruments = newInstrumentsModel()
+		m.initInstruments()
 	default:
 		m.state = stateModeSelect
 		m.modeSelect = newModeSelectModel()
@@ -140,21 +97,31 @@ func (m *Model) initKits() {
 	ks := m.kitsSetupFn()
 	m.topLevelDirs = ks.TopLevelDirs
 	m.padStyles = ks.PadStyles
-	m.isFirstRun = ks.IsFirstRun
 
-	if m.isFirstRun {
-		m.state = stateFirstRun
-		m.firstRun = newFirstRunModel(m.baseDir)
+	if ks.IsFirstRun {
+		m.state = stateKitsFirstRun
+		m.kitsFirstRun = kits.NewFirstRunModel(m.baseDir)
 	} else {
-		m.state = stateScanning
-		m.scan = newScanModel(m.topLevelDirs, m.srcDir, m.cfg)
+		m.state = stateKitsScanning
+		m.kitsScan = kits.NewScanModel(m.topLevelDirs, m.kitsSrcDir, m.cfg)
+	}
+}
+
+func (m *Model) initInstruments() {
+	is := m.instrumentsSetupFn()
+	if is.IsFirstRun {
+		m.state = stateInstrumentsFirstRun
+		m.instrumentsFirstRun = instruments.NewFirstRunModel(m.baseDir)
+	} else {
+		m.state = stateInstruments
+		m.instrumentsModel = instruments.NewModel()
 	}
 }
 
 func (m Model) Init() tea.Cmd {
 	switch m.state {
-	case stateScanning:
-		return m.scan.init()
+	case stateKitsScanning:
+		return m.kitsScan.Init()
 	}
 	return nil
 }
@@ -164,39 +131,41 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
-		if m.preview != nil {
-			m.preview.resize(msg.Width, msg.Height)
+		if m.kitsPreview != nil {
+			m.kitsPreview.Resize(msg.Width, msg.Height)
 		}
 		return m, nil
-	case errMsg:
+	case shared.ErrMsg:
 		m.state = stateDone
 		return m, tea.Quit
 	}
 
 	var cmd tea.Cmd
-	var tr transition
+	var tr shared.Transition
 
 	switch m.state {
 	case stateModeSelect:
 		cmd, tr = m.modeSelect.update(msg)
-	case stateFirstRun:
-		cmd, tr = m.firstRun.update(msg)
-	case stateScanning:
-		cmd, tr = m.scan.update(msg)
-	case statePreview:
-		cmd, tr = m.preview.update(msg)
-	case stateGenerating:
-		cmd, tr = m.gen.update(msg)
+	case stateKitsFirstRun:
+		cmd, tr = m.kitsFirstRun.Update(msg)
+	case stateKitsScanning:
+		cmd, tr = m.kitsScan.Update(msg)
+	case stateKitsPreview:
+		cmd, tr = m.kitsPreview.Update(msg)
+	case stateKitsGenerating:
+		cmd, tr = m.kitsGen.Update(msg)
+	case stateInstrumentsFirstRun:
+		cmd, tr = m.instrumentsFirstRun.Update(msg)
 	case stateInstruments:
-		cmd, tr = m.instruments.update(msg)
+		cmd, tr = m.instrumentsModel.Update(msg)
 	}
 
-	switch tr.phase {
-	case phaseAbort:
+	switch tr.Phase {
+	case shared.Abort:
 		m.Aborted = true
 		return m, tea.Quit
-	case phaseNext:
-		return m.advancePhase(tr.data)
+	case shared.Next:
+		return m.advancePhase(tr.Data)
 	}
 
 	return m, cmd
@@ -209,45 +178,49 @@ func (m Model) advancePhase(data any) (tea.Model, tea.Cmd) {
 		switch m.mode {
 		case ModeKits:
 			m.initKits()
-			if m.state == stateScanning {
-				return m, m.scan.init()
+			if m.state == stateKitsScanning {
+				return m, m.kitsScan.Init()
 			}
 			return m, nil
 		case ModeInstruments:
-			m.state = stateInstruments
-			m.instruments = newInstrumentsModel()
+			m.initInstruments()
 			return m, nil
 		}
 		return m, nil
 
-	case stateFirstRun:
-		m.state = stateScanning
-		m.scan = newScanModel(m.topLevelDirs, m.srcDir, m.cfg)
-		return m, m.scan.init()
+	case stateKitsFirstRun:
+		m.state = stateKitsScanning
+		m.kitsScan = kits.NewScanModel(m.topLevelDirs, m.kitsSrcDir, m.cfg)
+		return m, m.kitsScan.Init()
 
-	case stateScanning:
-		d := data.(scanDoneMsg)
-		if len(d.packs) == 0 {
+	case stateKitsScanning:
+		d := data.(kits.ScanDoneMsg)
+		if len(d.Packs) == 0 {
 			m.state = stateDone
 			return m, tea.Quit
 		}
-		m.state = statePreview
-		m.preview = newPreviewModel(d.packs, d.emptyPacks, d.wrongSampleCount, m.padStyles, m.cfg, m.width, m.height)
+		m.state = stateKitsPreview
+		m.kitsPreview = kits.NewPreviewModel(d.Packs, d.EmptyPacks, d.WrongSampleCount, m.padStyles, m.cfg, m.width, m.height)
 		return m, nil
 
-	case statePreview:
+	case stateKitsPreview:
 		packs := data.([]kit.Pack)
-		m.state = stateGenerating
-		m.gen = newGenModel(packs, m.destDir, m.cfg.PadLayout)
-		return m, m.gen.init()
+		m.state = stateKitsGenerating
+		m.kitsGen = kits.NewGenModel(packs, m.destDir, m.cfg.PadLayout)
+		return m, m.kitsGen.Init()
 
-	case stateGenerating:
-		d := data.(genDoneMsg)
-		m.KitCount = d.kitCount
-		m.SampleCount = d.sampleCount
-		m.TotalSize = d.totalSize
+	case stateKitsGenerating:
+		d := data.(kits.GenDoneMsg)
+		m.KitCount = d.KitCount
+		m.SampleCount = d.SampleCount
+		m.TotalSize = d.TotalSize
 		m.state = stateDone
 		return m, tea.Quit
+
+	case stateInstrumentsFirstRun:
+		m.state = stateInstruments
+		m.instrumentsModel = instruments.NewModel()
+		return m, nil
 
 	case stateInstruments:
 		m.state = stateDone
@@ -262,16 +235,18 @@ func (m Model) View() tea.View {
 	switch m.state {
 	case stateModeSelect:
 		s = m.modeSelect.view()
-	case stateFirstRun:
-		s = m.firstRun.view()
-	case stateScanning:
-		s = m.scan.view()
-	case statePreview:
-		s = m.preview.view()
-	case stateGenerating:
-		s = m.gen.view()
+	case stateKitsFirstRun:
+		s = m.kitsFirstRun.View()
+	case stateKitsScanning:
+		s = m.kitsScan.View()
+	case stateKitsPreview:
+		s = m.kitsPreview.View()
+	case stateKitsGenerating:
+		s = m.kitsGen.View()
+	case stateInstrumentsFirstRun:
+		s = m.instrumentsFirstRun.View()
 	case stateInstruments:
-		s = m.instruments.view()
+		s = m.instrumentsModel.View()
 	case stateDone:
 		s = ""
 	}
