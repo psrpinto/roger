@@ -23,18 +23,18 @@ If you're not used to working with terminals, you can also just double-click the
 ## Usage
 
 ```shell
-roger [PackName ...]
+roger [kits|instruments] [PackName ...]
 ```
-The first time you run `roger`, it creates a folder on your Desktop named `roger` containing `Input/` and `Output/` folders, and configuration files. If `Input/` is empty, `roger` generates example packs so you can see how things work.
+The first time you run `roger`, it creates a folder on your Desktop named `roger` containing `Kits/`, `Instruments/`, and `Output/` folders, and configuration files. If `Kits/` is empty, `roger` generates example packs so you can see how things work.
 
-With no arguments, all packs in `Input/` are processed. Pass one or more pack names to process only those.
+With no arguments, all packs in the mode's input directory are processed. Pass one or more pack names to process only those.
 
 ## Folder structure
 
-Each top-level folder inside `Input/` is a pack. You can have as many packs as you like, and they are each converted into a separate MPC Expansion:
+Each top-level folder inside `Kits/` is a pack. You can have as many packs as you like, and they are each converted into a separate MPC Expansion:
 
 ```
-Input/
+Kits/
   PackOne/
     ...
   PackTwo/
@@ -45,7 +45,7 @@ Within each pack, kits can be organized in two ways:
 
 **Flat pack** — all kits directly under the pack folder:
 ```
-Input/
+Kits/
   MyPack/
     Kit 1/
       Kick.wav
@@ -59,7 +59,7 @@ Input/
 
 **Grouped pack** — kits organized into named groups:
 ```
-Input/
+Kits/
   MyPack/
     Group A/
       Kit 1/
@@ -80,7 +80,7 @@ Each kit should contain up to 16 WAV files. If there are more than 16, the extra
 Place an image file (PNG, JPG, or TIFF) in the top-level pack folder to use it as the expansion cover art:
 
 ```
-Input/
+Kits/
   MyPack/
     SomeImage.png   ← used as Expansion.jpg
     Kit 1/
@@ -130,7 +130,7 @@ The type names used here must match names defined in `drum_types`.
 
 ### Custom program template
 
-`roger` ships with a default MPC program template. To use your own, export a drum program from the MPC as an `.xpm` file, rename it to `template.xpm`, and place it in the `roger` folder on your Desktop.
+`roger` ships with a default MPC program template. To use your own, export a drum program from the MPC as an `.xpm` file, rename it to `kit.xpm`, and place it in the `roger` folder on your Desktop.
 
 `roger` will use it as the base for all generated programs, preserving your pad colors and other settings.
 

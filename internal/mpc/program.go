@@ -20,7 +20,7 @@ import (
 var ProgramTemplate []byte
 
 func LoadCustomTemplate(baseDir string) {
-	path := filepath.Join(baseDir, "template.xpm")
+	path := filepath.Join(baseDir, "kit.xpm")
 	if data, err := os.ReadFile(path); err == nil {
 		ProgramTemplate = data
 	}

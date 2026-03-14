@@ -74,17 +74,17 @@ func main() {
 	}
 
 	kitsSetupFn := func() kits.Setup {
-		templatePath := filepath.Join(kitsSrcDir, "template.xpm")
+		templatePath := filepath.Join(baseDir, "kit.xpm")
 		if _, err := os.Stat(templatePath); os.IsNotExist(err) {
 			os.WriteFile(templatePath, mpc.ProgramTemplate, 0o644)
 		}
-		expansionPath := filepath.Join(kitsSrcDir, "expansion.xml")
+		expansionPath := filepath.Join(baseDir, "expansion.xml")
 		if _, err := os.Stat(expansionPath); os.IsNotExist(err) {
 			os.WriteFile(expansionPath, mpc.ExpansionTemplate, 0o644)
 		}
 
-		mpc.LoadCustomTemplate(kitsSrcDir)
-		mpc.LoadCustomExpansionTemplate(kitsSrcDir)
+		mpc.LoadCustomTemplate(baseDir)
+		mpc.LoadCustomExpansionTemplate(baseDir)
 
 		topLevelDirs := packArgs
 		if len(topLevelDirs) == 0 {
