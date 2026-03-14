@@ -82,8 +82,8 @@ type Model struct {
 	Aborted     bool
 }
 
-func NewModel(baseDir, kitsSrcDir, instSrcDir, destDir string, cfg *config.Config, mode Mode, kitsSetupFn kits.SetupFunc, instrumentsSetupFn instruments.SetupFunc) Model {
-	m := Model{
+func NewModel(baseDir, kitsSrcDir, instSrcDir, destDir string, cfg *config.Config, mode Mode, kitsSetupFn kits.SetupFunc, instrumentsSetupFn instruments.SetupFunc) *Model {
+	m := &Model{
 		mode:               mode,
 		cliMode:            mode != "",
 		cfg:                cfg,
@@ -112,7 +112,6 @@ func (m *Model) initKits() {
 	ks := m.kitsSetupFn()
 	m.topLevelDirs = ks.TopLevelDirs
 	m.padStyles = ks.PadStyles
-
 	if ks.IsFirstRun {
 		m.state = stateKitsFirstRun
 		m.kitsFirstRun = kits.NewFirstRunModel(m.baseDir)
@@ -133,7 +132,7 @@ func (m *Model) initInstruments() {
 	}
 }
 
-func (m Model) Init() tea.Cmd {
+func (m *Model) Init() tea.Cmd {
 	switch m.state {
 	case stateKitsScanning:
 		return m.kitsScan.Init()
@@ -142,7 +141,7 @@ func (m Model) Init() tea.Cmd {
 }
 
 // newHelpForMode returns the help model for the current mode.
-func (m Model) newHelpForMode() subModel {
+func (m *Model) newHelpForMode() subModel {
 	switch m.mode {
 	case ModeKits:
 		return kits.NewHelpModel(m.baseDir)
@@ -154,7 +153,7 @@ func (m Model) newHelpForMode() subModel {
 }
 
 // canShowHelp returns true for interactive states where help makes sense.
-func (m Model) canShowHelp() bool {
+func (m *Model) canShowHelp() bool {
 	switch m.state {
 	case stateKitsFirstRun, stateKitsPreview, stateInstrumentsFirstRun, stateInstruments:
 		return true
@@ -162,7 +161,7 @@ func (m Model) canShowHelp() bool {
 	return false
 }
 
-func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
@@ -235,7 +234,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, cmd
 }
 
-func (m Model) advancePhase(data any) (tea.Model, tea.Cmd) {
+func (m *Model) advancePhase(data any) (tea.Model, tea.Cmd) {
 	switch m.state {
 	case stateModeSelect:
 		m.mode = data.(Mode)
@@ -294,7 +293,7 @@ func (m Model) advancePhase(data any) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-func (m Model) retreatPhase() (tea.Model, tea.Cmd) {
+func (m *Model) retreatPhase() (tea.Model, tea.Cmd) {
 	if m.cliMode {
 		m.Aborted = true
 		return m, tea.Quit
@@ -319,7 +318,7 @@ func (m Model) retreatPhase() (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-func (m Model) breadcrumb() []string {
+func (m *Model) breadcrumb() []string {
 	switch m.state {
 	case stateKitsFirstRun:
 		return []string{"roger", "Kits", "Setup"}
@@ -347,7 +346,7 @@ func (m Model) breadcrumb() []string {
 	}
 }
 
-func (m Model) View() tea.View {
+func (m *Model) View() tea.View {
 	var s string
 	switch m.state {
 	case stateModeSelect:

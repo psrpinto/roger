@@ -82,7 +82,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	fm := finalModel.(tui.Model)
+	fm := finalModel.(*tui.Model)
 	if fm.Aborted {
 		fmt.Println("Aborted.")
 	} else if fm.KitCount > 0 {
