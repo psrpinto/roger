@@ -10,18 +10,15 @@ import (
 	"roger/internal/tui/shared"
 )
 
-type modeOption struct {
-	label       string
-	description string
-	mode        Mode
-}
-
 const modeExit Mode = "exit"
 
-var modeOptions = []modeOption{
-	{"Kits", "Create Drum programs", ModeKits},
-	{"Instruments", "Create Keygroup programs", ModeInstruments},
-	{"Quit", "Quit roger", modeExit},
+var modeOptions = []struct {
+	mode Mode
+	item shared.SelectItem
+}{
+	{ModeKits, shared.SelectItem{Label: "Kits", Description: "Create Drum programs"}},
+	{ModeInstruments, shared.SelectItem{Label: "Instruments", Description: "Create Keygroup programs"}},
+	{modeExit, shared.SelectItem{Label: "Quit", Description: "Quit roger"}},
 }
 
 const (
@@ -30,13 +27,17 @@ const (
 )
 
 type HomeModel struct {
-	cursor int
+	sel    *shared.SelectModel
 	width  int
 	height int
 }
 
 func NewHomeModel() *HomeModel {
-	return &HomeModel{}
+	items := make([]shared.SelectItem, len(modeOptions))
+	for i, opt := range modeOptions {
+		items[i] = opt.item
+	}
+	return &HomeModel{sel: shared.NewSelectModel(items)}
 }
 
 func (m *HomeModel) Resize(w, h int) {
@@ -45,28 +46,18 @@ func (m *HomeModel) Resize(w, h int) {
 }
 
 func (m *HomeModel) Update(msg tea.Msg) (tea.Cmd, shared.Transition) {
-	kp, ok := msg.(tea.KeyPressMsg)
-	if !ok {
-		return nil, shared.Transition{}
-	}
-	switch kp.String() {
-	case "up", "k":
-		if m.cursor > 0 {
-			m.cursor--
-		}
-	case "down", "j":
-		if m.cursor < len(modeOptions)-1 {
-			m.cursor++
-		}
-	case "enter":
-		if modeOptions[m.cursor].mode == modeExit {
-			return nil, shared.Transition{Phase: shared.Abort}
-		}
-		return nil, shared.Transition{Phase: shared.Next, Data: modeOptions[m.cursor].mode}
-	case "ctrl+c":
+	if kp, ok := msg.(tea.KeyPressMsg); ok && kp.String() == "ctrl+c" {
 		return nil, shared.Transition{Phase: shared.Abort}
 	}
-	return nil, shared.Transition{}
+	cmd, tr := m.sel.Update(msg)
+	if tr.Phase == shared.Next {
+		idx := tr.Data.(int)
+		if modeOptions[idx].mode == modeExit {
+			return nil, shared.Transition{Phase: shared.Abort}
+		}
+		return nil, shared.Transition{Phase: shared.Next, Data: modeOptions[idx].mode}
+	}
+	return cmd, tr
 }
 
 func (m *HomeModel) View() string {
@@ -83,17 +74,7 @@ func (m *HomeModel) View() string {
 	fmt.Fprintln(&b)
 	fmt.Fprintln(&b, "What would you like to create?")
 	fmt.Fprintln(&b)
-	for i, opt := range modeOptions {
-		if i > 0 {
-			fmt.Fprintln(&b)
-		}
-		if i == m.cursor {
-			fmt.Fprintf(&b, "%s %s\n", shared.Cyan.Render("▸"), shared.Bold.Render(opt.label))
-			fmt.Fprintf(&b, "  %s\n", shared.Dim.Render(opt.description))
-		} else {
-			fmt.Fprintf(&b, "  %s\n", shared.Dim.Render(opt.label))
-		}
-	}
+	fmt.Fprint(&b, m.sel.View())
 	if (m.width > 0 && m.width < minWidth) || (m.height > 0 && m.height < minHeight) {
 		fmt.Fprintln(&b)
 		if m.width > 0 && m.width < minWidth {

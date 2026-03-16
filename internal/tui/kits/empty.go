@@ -11,39 +11,34 @@ import (
 )
 
 type EmptyModel struct {
+	sel     *shared.SelectModel
 	baseDir string
 	srcDir  string
-	cursor  int
 }
 
 func NewEmptyModel(baseDir, srcDir string) *EmptyModel {
-	return &EmptyModel{baseDir: baseDir, srcDir: srcDir}
+	items := []shared.SelectItem{
+		{Label: "Generate example files", Description: "Create example kit directories in Kits/"},
+		{Label: "Show instructions", Description: "Open the help screen"},
+	}
+	return &EmptyModel{
+		sel:     shared.NewSelectModel(items),
+		baseDir: baseDir,
+		srcDir:  srcDir,
+	}
 }
 
 func (m *EmptyModel) Update(msg tea.Msg) (tea.Cmd, shared.Transition) {
-	kp, ok := msg.(tea.KeyPressMsg)
-	if !ok {
-		return nil, shared.Transition{}
-	}
-	switch kp.String() {
-	case "up", "k":
-		if m.cursor > 0 {
-			m.cursor--
-		}
-	case "down", "j":
-		if m.cursor < 1 {
-			m.cursor++
-		}
-	case "enter":
-		if m.cursor == 0 {
+	cmd, tr := m.sel.Update(msg)
+	if tr.Phase == shared.Next {
+		idx := tr.Data.(int)
+		if idx == 0 {
 			examples.CreateExampleDirs(m.srcDir)
 			return nil, shared.Transition{Phase: shared.Next}
 		}
 		return nil, shared.Transition{Phase: shared.ShowHelp}
-	case "esc":
-		return nil, shared.Transition{Phase: shared.Back}
 	}
-	return nil, shared.Transition{}
+	return cmd, tr
 }
 
 func (m *EmptyModel) View() string {
@@ -51,21 +46,6 @@ func (m *EmptyModel) View() string {
 	fmt.Fprintf(&b, "Workspace: %s\n\n", shared.Cyan.Render(m.baseDir))
 	fmt.Fprintln(&b, "No kits found. What would you like to do?")
 	fmt.Fprintln(&b)
-
-	options := []struct{ label, desc string }{
-		{"Generate example files", "Create example kit directories in Kits/"},
-		{"Show instructions", "Open the help screen"},
-	}
-	for i, opt := range options {
-		if i > 0 {
-			fmt.Fprintln(&b)
-		}
-		if i == m.cursor {
-			fmt.Fprintf(&b, "%s %s\n", shared.Cyan.Render("▸"), shared.Bold.Render(opt.label))
-			fmt.Fprintf(&b, "  %s\n", shared.Dim.Render(opt.desc))
-		} else {
-			fmt.Fprintf(&b, "  %s\n", shared.Dim.Render(opt.label))
-		}
-	}
+	fmt.Fprint(&b, m.sel.View())
 	return b.String()
 }
