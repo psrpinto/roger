@@ -4,11 +4,26 @@ import (
 	"fmt"
 	"strings"
 
+	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 
 	"roger/internal/tui/shared"
 )
+
+// homeKeys implements help.KeyMap for the home screen.
+type homeKeys struct{}
+
+func (homeKeys) ShortHelp() []key.Binding {
+	return []key.Binding{shared.KeyNav, shared.KeySelect, shared.KeyBack, shared.KeyQuit}
+}
+
+func (homeKeys) FullHelp() [][]key.Binding {
+	return [][]key.Binding{
+		{shared.KeyNav, shared.KeySelect, shared.KeyBack},
+		{shared.KeyScroll, shared.KeyHelp, shared.KeyQuit},
+	}
+}
 
 const modeExit Mode = "exit"
 
@@ -86,24 +101,13 @@ func (m *HomeModel) View() string {
 				shared.Yellow.Render("warning:"), m.height, minHeight)
 		}
 	}
-	hints := []string{
-		"Use ↑/↓ or j/k to navigate, and Enter to select.",
-		"Press Esc to go back to the previous screen.",
-		"Scroll long screens with ↑/↓ or your scroll wheel.",
-		"Press ? on any screen to open its help page.",
-		"Press Ctrl-c at any time to quit.",
-	}
-	maxLen := 0
-	for _, h := range hints {
-		if l := len([]rune(h)); l > maxLen {
-			maxLen = l
-		}
-	}
+	h := shared.NewHelpView()
+	h.ShowAll = true
+	helpText := h.View(homeKeys{})
+	ruleLen := lipgloss.Width(helpText)
 	fmt.Fprintln(&b)
-	fmt.Fprintln(&b, shared.Dim.Render(strings.Repeat("─", maxLen)))
+	fmt.Fprintln(&b, shared.Dim.Render(strings.Repeat("─", ruleLen)))
 	fmt.Fprintln(&b)
-	for _, h := range hints {
-		fmt.Fprintln(&b, shared.Dim.Render(h))
-	}
+	fmt.Fprintln(&b, helpText)
 	return b.String()
 }

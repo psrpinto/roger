@@ -1,6 +1,20 @@
 package shared
 
-import "strings"
+import (
+	"strings"
+
+	"charm.land/bubbles/v2/key"
+	"charm.land/lipgloss/v2"
+)
+
+// breadcrumbKeys implements help.KeyMap for the breadcrumb bar.
+type breadcrumbKeys struct{}
+
+func (breadcrumbKeys) ShortHelp() []key.Binding {
+	return []key.Binding{KeyHelp, KeyBack, KeyQuit}
+}
+
+func (breadcrumbKeys) FullHelp() [][]key.Binding { return nil }
 
 // RenderBreadcrumb renders a breadcrumb bar from the given path segments,
 // with a separator line underneath and a back hint on the right.
@@ -15,7 +29,8 @@ func RenderBreadcrumb(segments []string, width int) string {
 	}
 	sep := Dim.Render(" › ")
 	left := "  " + strings.Join(parts, sep)
-	hint := Dim.Render("? help  Esc ← back  Ctrl-c quit")
+	h := NewHelpView()
+	hint := h.View(breadcrumbKeys{})
 	// Calculate visible width of left side (sum of segment lengths + separators + indent)
 	visibleLeft := 2 // indent
 	for i, s := range segments {
@@ -24,7 +39,7 @@ func RenderBreadcrumb(segments []string, width int) string {
 		}
 		visibleLeft += len([]rune(s))
 	}
-	hintLen := 31 // "? help  Esc ← back  Ctrl-c quit"
+	hintLen := lipgloss.Width(hint)
 	gap := width - visibleLeft - hintLen
 	if gap < 2 {
 		gap = 2

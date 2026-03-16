@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
 )
 
@@ -87,6 +88,8 @@ func (m *MultiSelectModel) View() string {
 		}
 	}
 	fmt.Fprintln(&b)
-	fmt.Fprintf(&b, "  %s\n", Dim.Render(fmt.Sprintf("%d of %d selected  ·  Enter to scan, Space to toggle", selCount, len(m.items))))
+	h := NewHelpView()
+	hint := h.ShortHelpView([]key.Binding{KeyConfirm, KeyToggle})
+	fmt.Fprintf(&b, "  %s\n", Dim.Render(fmt.Sprintf("%d of %d selected", selCount, len(m.items)))+"  "+hint)
 	return b.String()
 }
