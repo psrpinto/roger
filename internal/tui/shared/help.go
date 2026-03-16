@@ -15,7 +15,7 @@ func (m *HelpModel) Update(msg tea.Msg) (tea.Cmd, Transition) {
 		switch kp.String() {
 		case "ctrl+c":
 			return nil, Transition{Phase: Abort}
-		default:
+		case "esc":
 			return nil, Transition{Phase: Back}
 		}
 	}
@@ -23,5 +23,5 @@ func (m *HelpModel) Update(msg tea.Msg) (tea.Cmd, Transition) {
 }
 
 func (m *HelpModel) View() string {
-	return m.content + "\n" + Dim.Render("Press any key to go back")
+	return m.content
 }

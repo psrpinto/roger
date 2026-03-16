@@ -10,6 +10,7 @@ const (
 	Next
 	Back
 	Abort
+	ShowHelp
 )
 
 type Transition struct {

@@ -125,6 +125,11 @@ func (m *Model) Update(msg tea.Msg) (tea.Cmd, shared.Transition) {
 		return m.retreatPhase()
 	case shared.Next:
 		return m.advancePhase()
+	case shared.ShowHelp:
+		m.help = NewHelpModel(m.baseDir)
+		m.helpPrev = m.state
+		m.state = stateHelp
+		return nil, shared.Transition{}
 	}
 
 	return cmd, shared.Transition{}

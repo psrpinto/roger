@@ -1,6 +1,9 @@
 package instruments
 
 import (
+	"fmt"
+	"strings"
+
 	tea "charm.land/bubbletea/v2"
 
 	"roger/internal/examples"
@@ -10,6 +13,7 @@ import (
 type EmptyModel struct {
 	baseDir string
 	srcDir  string
+	cursor  int
 }
 
 func NewEmptyModel(baseDir, srcDir string) *EmptyModel {
@@ -22,18 +26,46 @@ func (m *EmptyModel) Update(msg tea.Msg) (tea.Cmd, shared.Transition) {
 		return nil, shared.Transition{}
 	}
 	switch kp.String() {
-	case "y", "Y", "enter":
-		examples.CreateExampleInstrumentDirs(m.srcDir)
-		return nil, shared.Transition{Phase: shared.Next}
-	case "n", "N":
-		return nil, shared.Transition{Phase: shared.Next}
-	case "esc", "ctrl+c":
+	case "up", "k":
+		if m.cursor > 0 {
+			m.cursor--
+		}
+	case "down", "j":
+		if m.cursor < 1 {
+			m.cursor++
+		}
+	case "enter":
+		if m.cursor == 0 {
+			examples.CreateExampleInstrumentDirs(m.srcDir)
+			return nil, shared.Transition{Phase: shared.Next}
+		}
+		return nil, shared.Transition{Phase: shared.ShowHelp}
+	case "esc":
 		return nil, shared.Transition{Phase: shared.Back}
 	}
 	return nil, shared.Transition{}
 }
 
 func (m *EmptyModel) View() string {
-	return "Workspace: " + shared.Cyan.Render(m.baseDir) + "\n\n" +
-		"No instruments found. Would you like example directories to be created in Instruments/? [Y/n] "
+	var b strings.Builder
+	fmt.Fprintf(&b, "Workspace: %s\n\n", shared.Cyan.Render(m.baseDir))
+	fmt.Fprintln(&b, "No instruments found. What would you like to do?")
+	fmt.Fprintln(&b)
+
+	options := []struct{ label, desc string }{
+		{"Generate example files", "Create example instrument directories in Instruments/"},
+		{"Show instructions", "Open the help screen"},
+	}
+	for i, opt := range options {
+		if i > 0 {
+			fmt.Fprintln(&b)
+		}
+		if i == m.cursor {
+			fmt.Fprintf(&b, "%s %s\n", shared.Cyan.Render("▸"), shared.Bold.Render(opt.label))
+			fmt.Fprintf(&b, "  %s\n", shared.Dim.Render(opt.desc))
+		} else {
+			fmt.Fprintf(&b, "  %s\n", shared.Dim.Render(opt.label))
+		}
+	}
+	return b.String()
 }
