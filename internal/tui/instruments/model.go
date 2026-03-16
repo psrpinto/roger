@@ -22,9 +22,10 @@ const (
 type Model struct {
 	state instState
 
-	baseDir    string
-	instSrcDir string
-	packArgs   []string
+	baseDir      string
+	instSrcDir   string
+	packArgs     []string
+	topLevelDirs []string
 
 	home     *HomeModel
 	empty    *EmptyModel
@@ -48,17 +49,17 @@ func (m *Model) init() {
 		os.Exit(1)
 	}
 
-	topLevelDirs := m.packArgs
-	if len(topLevelDirs) == 0 {
-		topLevelDirs = sampler.ListSubdirs(m.instSrcDir)
+	m.topLevelDirs = m.packArgs
+	if len(m.topLevelDirs) == 0 {
+		m.topLevelDirs = sampler.ListSubdirs(m.instSrcDir)
 	}
 
-	if len(m.packArgs) == 0 && len(topLevelDirs) == 0 {
+	if len(m.packArgs) == 0 && len(m.topLevelDirs) == 0 {
 		m.state = stateEmpty
 		m.empty = NewEmptyModel(m.baseDir, m.instSrcDir)
 	} else {
 		m.state = stateHome
-		m.home = NewHomeModel()
+		m.home = NewHomeModel(m.topLevelDirs)
 	}
 }
 
@@ -124,7 +125,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Cmd, shared.Transition) {
 	case shared.Back:
 		return m.retreatPhase()
 	case shared.Next:
-		return m.advancePhase()
+		return m.advancePhase(tr.Data)
 	case shared.ShowHelp:
 		m.help = NewHelpModel(m.baseDir)
 		m.helpPrev = m.state
@@ -135,11 +136,12 @@ func (m *Model) Update(msg tea.Msg) (tea.Cmd, shared.Transition) {
 	return cmd, shared.Transition{}
 }
 
-func (m *Model) advancePhase() (tea.Cmd, shared.Transition) {
-	if m.state == stateEmpty {
+func (m *Model) advancePhase(data any) (tea.Cmd, shared.Transition) {
+	switch m.state {
+	case stateEmpty:
 		m.empty = nil
 		m.state = stateHome
-		m.home = NewHomeModel()
+		m.home = NewHomeModel(m.topLevelDirs)
 	}
 	return nil, shared.Transition{}
 }
@@ -150,7 +152,7 @@ func (m *Model) retreatPhase() (tea.Cmd, shared.Transition) {
 		// Go to instruments home (not root home), matching original behavior.
 		m.empty = nil
 		m.state = stateHome
-		m.home = NewHomeModel()
+		m.home = NewHomeModel(m.topLevelDirs)
 		return nil, shared.Transition{}
 	case stateHome:
 		return nil, shared.Transition{Phase: shared.Back}

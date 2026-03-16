@@ -97,7 +97,7 @@ func (m *Model) init() {
 		m.empty = NewEmptyModel(m.baseDir, m.kitsSrcDir)
 	} else {
 		m.state = stateHome
-		m.home = NewHomeModel()
+		m.home = NewHomeModel(m.topLevelDirs)
 	}
 }
 
@@ -207,13 +207,14 @@ func (m *Model) advancePhase(data any) (tea.Cmd, shared.Transition) {
 			m.topLevelDirs = sampler.ListSubdirs(m.kitsSrcDir)
 		}
 		m.state = stateHome
-		m.home = NewHomeModel()
+		m.home = NewHomeModel(m.topLevelDirs)
 		return nil, shared.Transition{}
 
 	case stateHome:
 		m.home = nil
+		selectedDirs := data.([]string)
 		m.state = stateScanning
-		m.scan = NewScanModel(m.topLevelDirs, m.kitsSrcDir, m.cfg)
+		m.scan = NewScanModel(selectedDirs, m.kitsSrcDir, m.cfg)
 		return m.scan.Init(), shared.Transition{}
 
 	case stateScanning:
@@ -252,7 +253,7 @@ func (m *Model) retreatPhase() (tea.Cmd, shared.Transition) {
 	case statePreview:
 		m.preview = nil
 		m.state = stateHome
-		m.home = NewHomeModel()
+		m.home = NewHomeModel(m.topLevelDirs)
 		return nil, shared.Transition{}
 	}
 
