@@ -27,7 +27,7 @@ type Model struct {
 	packArgs   []string
 
 	home     *HomeModel
-	empty *EmptyModel
+	empty    *EmptyModel
 	help     *HelpModel
 	helpPrev instState
 }
@@ -80,7 +80,7 @@ func (m *Model) Breadcrumb() []string {
 	case stateHome:
 		return []string{"roger", "Instruments"}
 	case stateEmpty:
-		return []string{"roger", "Instruments", "Setup"}
+		return []string{"roger", "Instruments", "No kits found"}
 	case stateHelp:
 		return []string{"roger", "Instruments", "Help"}
 	}

@@ -49,7 +49,7 @@ type Model struct {
 	padStyles    [16]lipgloss.Style
 
 	home     *HomeModel
-	empty *EmptyModel
+	empty    *EmptyModel
 	scan     *ScanModel
 	preview  *PreviewModel
 	gen      *GenModel
@@ -122,7 +122,7 @@ func (m *Model) Breadcrumb() []string {
 	case stateHome:
 		return []string{"roger", "Kits"}
 	case stateEmpty:
-		return []string{"roger", "Kits", "Setup"}
+		return []string{"roger", "Kits", "No kits found"}
 	case stateScanning:
 		return []string{"roger", "Kits", "Scanning"}
 	case statePreview:
