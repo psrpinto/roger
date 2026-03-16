@@ -49,8 +49,8 @@ func (m *PreviewModel) Update(msg tea.Msg) (tea.Cmd, shared.Transition) {
 			return nil, shared.Transition{Phase: shared.Next, Data: m.packs}
 		case "esc":
 			return nil, shared.Transition{Phase: shared.Back}
-		case "n", "N", "q", "ctrl+c":
-			return nil, shared.Transition{Phase: shared.Abort}
+		case "n", "N", "q":
+			return nil, shared.Transition{Phase: shared.Back}
 		}
 	}
 	var cmd tea.Cmd

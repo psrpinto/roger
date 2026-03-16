@@ -20,8 +20,7 @@ func (homeKeys) ShortHelp() []key.Binding {
 
 func (homeKeys) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
-		{shared.KeyNav, shared.KeySelect, shared.KeyBack},
-		{shared.KeyScroll, shared.KeyHelp, shared.KeyQuit},
+		{shared.KeyNav, shared.KeySelect, shared.KeyBack, shared.KeyScroll, shared.KeyHelp, shared.KeyQuit},
 	}
 }
 
@@ -61,9 +60,6 @@ func (m *HomeModel) Resize(w, h int) {
 }
 
 func (m *HomeModel) Update(msg tea.Msg) (tea.Cmd, shared.Transition) {
-	if kp, ok := msg.(tea.KeyPressMsg); ok && kp.String() == "ctrl+c" {
-		return nil, shared.Transition{Phase: shared.Abort}
-	}
 	cmd, tr := m.sel.Update(msg)
 	if tr.Phase == shared.Next {
 		idx := tr.Data.(int)

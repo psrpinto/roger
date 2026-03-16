@@ -57,7 +57,7 @@ func (m *MultiSelectModel) Update(msg tea.Msg) (tea.Cmd, Transition) {
 			return nil, Transition{}
 		}
 		return nil, Transition{Phase: Next, Data: chosen}
-	case "esc", "ctrl+c":
+	case "esc":
 		return nil, Transition{Phase: Back}
 	}
 	return nil, Transition{}

@@ -30,7 +30,7 @@ var (
 	)
 	KeyScroll = key.NewBinding(
 		key.WithKeys("up", "down"),
-		key.WithHelp("↑/↓", "scroll"),
+		key.WithHelp("↑/↓/scroll", "scroll"),
 	)
 	KeyToggle = key.NewBinding(
 		key.WithKeys("space"),

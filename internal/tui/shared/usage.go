@@ -13,8 +13,6 @@ func NewUsageModel(content string) *UsageModel {
 func (m *UsageModel) Update(msg tea.Msg) (tea.Cmd, Transition) {
 	if kp, ok := msg.(tea.KeyPressMsg); ok {
 		switch kp.String() {
-		case "ctrl+c":
-			return nil, Transition{Phase: Abort}
 		case "esc":
 			return nil, Transition{Phase: Back}
 		}

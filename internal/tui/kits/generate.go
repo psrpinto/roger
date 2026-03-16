@@ -59,10 +59,6 @@ func (m *GenModel) Init() tea.Cmd {
 
 func (m *GenModel) Update(msg tea.Msg) (tea.Cmd, shared.Transition) {
 	switch msg := msg.(type) {
-	case tea.KeyPressMsg:
-		if msg.String() == "ctrl+c" {
-			return nil, shared.Transition{Phase: shared.Abort}
-		}
 	case genProgressMsg:
 		m.progress = msg.done
 		m.total = msg.total

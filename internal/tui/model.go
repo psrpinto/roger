@@ -122,6 +122,11 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 
+	if kp, ok := msg.(tea.KeyPressMsg); ok && kp.String() == "ctrl+c" {
+		m.Aborted = true
+		return m, tea.Quit
+	}
+
 	if _, ok := msg.(shared.ErrMsg); ok {
 		m.state = stateDone
 		return m, tea.Quit

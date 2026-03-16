@@ -61,10 +61,6 @@ func (m *ScanModel) Init() tea.Cmd {
 
 func (m *ScanModel) Update(msg tea.Msg) (tea.Cmd, shared.Transition) {
 	switch msg := msg.(type) {
-	case tea.KeyPressMsg:
-		if msg.String() == "ctrl+c" {
-			return nil, shared.Transition{Phase: shared.Abort}
-		}
 	case scanProgressMsg:
 		m.progress = msg.done
 		m.total = msg.total
