@@ -101,7 +101,7 @@ func (m *HomeModel) View() string {
 				shared.Yellow.Render("warning:"), m.height, minHeight)
 		}
 	}
-	h := shared.NewHelpView()
+	h := shared.NewHelpModel()
 	h.ShowAll = true
 	helpText := h.View(homeKeys{})
 	ruleLen := lipgloss.Width(helpText)

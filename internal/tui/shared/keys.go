@@ -42,8 +42,8 @@ var (
 	)
 )
 
-// NewHelpView returns a help.Model styled with dim text.
-func NewHelpView() help.Model {
+// NewHelpModel returns a help.Model styled with dim text.
+func NewHelpModel() help.Model {
 	m := help.New()
 	dimKey := lipgloss.NewStyle().Faint(true)
 	dimDesc := lipgloss.NewStyle().Faint(true)

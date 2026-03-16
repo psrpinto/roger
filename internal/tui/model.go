@@ -143,7 +143,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	if m.state == stateHome {
 		if kp, ok := msg.(tea.KeyPressMsg); ok && kp.String() == "?" {
-			m.help = NewHelpModel(m.baseDir)
+			m.help = NewUsageModel(m.baseDir)
 			m.helpPrev = stateHome
 			m.state = stateHelp
 			return m, nil

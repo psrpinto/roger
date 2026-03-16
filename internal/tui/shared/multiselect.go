@@ -88,7 +88,7 @@ func (m *MultiSelectModel) View() string {
 		}
 	}
 	fmt.Fprintln(&b)
-	h := NewHelpView()
+	h := NewHelpModel()
 	hint := h.ShortHelpView([]key.Binding{KeyConfirm, KeyToggle})
 	fmt.Fprintf(&b, "  %s\n", Dim.Render(fmt.Sprintf("%d of %d selected", selCount, len(m.items)))+"  "+hint)
 	return b.String()

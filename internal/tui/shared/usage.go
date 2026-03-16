@@ -2,15 +2,15 @@ package shared
 
 import tea "charm.land/bubbletea/v2"
 
-type HelpModel struct {
+type UsageModel struct {
 	content string
 }
 
-func NewHelpModel(content string) *HelpModel {
-	return &HelpModel{content: content}
+func NewUsageModel(content string) *UsageModel {
+	return &UsageModel{content: content}
 }
 
-func (m *HelpModel) Update(msg tea.Msg) (tea.Cmd, Transition) {
+func (m *UsageModel) Update(msg tea.Msg) (tea.Cmd, Transition) {
 	if kp, ok := msg.(tea.KeyPressMsg); ok {
 		switch kp.String() {
 		case "ctrl+c":
@@ -22,6 +22,6 @@ func (m *HelpModel) Update(msg tea.Msg) (tea.Cmd, Transition) {
 	return nil, Transition{}
 }
 
-func (m *HelpModel) View() string {
+func (m *UsageModel) View() string {
 	return m.content
 }

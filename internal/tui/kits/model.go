@@ -53,7 +53,7 @@ type Model struct {
 	scan     *ScanModel
 	preview  *PreviewModel
 	gen      *GenModel
-	help     *HelpModel
+	help     *UsageModel
 	helpPrev kitState
 }
 
@@ -159,7 +159,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Cmd, shared.Transition) {
 	}
 
 	if kp, ok := msg.(tea.KeyPressMsg); ok && kp.String() == "?" && m.canShowHelp() {
-		m.help = NewHelpModel(m.baseDir)
+		m.help = NewUsageModel(m.baseDir)
 		m.helpPrev = m.state
 		m.state = stateHelp
 		return nil, shared.Transition{}
@@ -189,7 +189,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Cmd, shared.Transition) {
 	case shared.Next:
 		return m.advancePhase(tr.Data)
 	case shared.ShowHelp:
-		m.help = NewHelpModel(m.baseDir)
+		m.help = NewUsageModel(m.baseDir)
 		m.helpPrev = m.state
 		m.state = stateHelp
 		return nil, shared.Transition{}

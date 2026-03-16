@@ -9,19 +9,19 @@ import (
 	"roger/internal/tui/shared"
 )
 
-type HelpModel struct {
-	inner *shared.HelpModel
+type UsageModel struct {
+	inner *shared.UsageModel
 }
 
-func NewHelpModel(baseDir string) *HelpModel {
-	return &HelpModel{inner: shared.NewHelpModel(RenderHelp(baseDir))}
+func NewUsageModel(baseDir string) *UsageModel {
+	return &UsageModel{inner: shared.NewUsageModel(RenderHelp(baseDir))}
 }
 
-func (m *HelpModel) Update(msg tea.Msg) (tea.Cmd, shared.Transition) {
+func (m *UsageModel) Update(msg tea.Msg) (tea.Cmd, shared.Transition) {
 	return m.inner.Update(msg)
 }
 
-func (m *HelpModel) View() string {
+func (m *UsageModel) View() string {
 	return m.inner.View()
 }
 

@@ -29,7 +29,7 @@ func RenderBreadcrumb(segments []string, width int) string {
 	}
 	sep := Dim.Render(" › ")
 	left := "  " + strings.Join(parts, sep)
-	h := NewHelpView()
+	h := NewHelpModel()
 	hint := h.View(breadcrumbKeys{})
 	// Calculate visible width of left side (sum of segment lengths + separators + indent)
 	visibleLeft := 2 // indent
