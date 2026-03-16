@@ -94,11 +94,13 @@ func NewModel(baseDir, kitsSrcDir, instSrcDir, destDir string, cfg *config.Confi
 
 func (m *Model) initKits(packArgs []string) {
 	m.activeModeModel = kits.NewModel(m.baseDir, m.kitsSrcDir, m.destDir, packArgs, m.cfg)
+	m.activeModeModel.Update(tea.WindowSizeMsg{Width: m.width, Height: m.height})
 	m.state = stateModeActive
 }
 
 func (m *Model) initInstruments(packArgs []string) {
 	m.activeModeModel = instruments.NewModel(m.baseDir, m.instSrcDir, packArgs)
+	m.activeModeModel.Update(tea.WindowSizeMsg{Width: m.width, Height: m.height})
 	m.state = stateModeActive
 }
 
