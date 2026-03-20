@@ -4,7 +4,9 @@ go = "1.25"
 [tasks.install]
 alias = "i"
 run = [
-    "mise install"
+    "mise install",
+    "go get fyne.io/fyne/v2@latest",
+    "go install fyne.io/tools/cmd/fyne@latest",
 ]
 
 [tasks.build]
@@ -16,3 +18,7 @@ run = "go build ."
 description = "Start"
 alias = "s"
 run = "go run ."
+
+[tasks.demo]
+description = "Run fyne demo app"
+run = "go run fyne.io/demo@latest"

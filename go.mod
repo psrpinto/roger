@@ -14,6 +14,7 @@ require (
 )
 
 require (
+	fyne.io/fyne/v2 v2.7.3 // indirect
 	github.com/charmbracelet/colorprofile v0.4.2 // indirect
 	github.com/charmbracelet/ultraviolet v0.0.0-20260205113103-524a6607adb8 // indirect
 	github.com/charmbracelet/x/ansi v0.11.6 // indirect
