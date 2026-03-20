@@ -5,19 +5,20 @@ go = "1.25"
 alias = "i"
 run = [
     "mise install",
-    "go get fyne.io/fyne/v2@latest",
+    "go mod download",
     "go install fyne.io/tools/cmd/fyne@latest",
 ]
 
 [tasks.build]
 description = "Build"
 alias = "b"
-run = "go build ."
+run = "fyne package -os darwin -icon icon.png"
 
 [tasks.start]
 description = "Start"
 alias = "s"
-run = "go run ."
+depends = "build"
+run = "open roger.app"
 
 [tasks.demo]
 description = "Run fyne demo app"
