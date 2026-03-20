@@ -11,8 +11,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	"charm.land/lipgloss/v2"
-
 	"roger/internal/kit"
 )
 
@@ -237,57 +235,3 @@ func replicatePadColors(padsJSON string, numBanks int) (string, error) {
 	return buf.String(), nil
 }
 
-// ExtractPadStyles reads the 16 pad colors from ProgramTemplate
-// and returns them as lipgloss styles with colored foregrounds.
-func ExtractPadStyles() [16]lipgloss.Style {
-	var styles [16]lipgloss.Style
-	for i := range styles {
-		styles[i] = lipgloss.NewStyle()
-	}
-
-	decoder := xml.NewDecoder(bytes.NewReader(ProgramTemplate))
-	var padsJSON string
-	for {
-		tok, err := decoder.Token()
-		if err != nil {
-			break
-		}
-		se, ok := tok.(xml.StartElement)
-		if !ok || se.Name.Local != "ProgramPads-v2.10" {
-			continue
-		}
-		if err := decoder.DecodeElement(&padsJSON, &se); err != nil {
-			break
-		}
-		break
-	}
-	if padsJSON == "" {
-		return styles
-	}
-
-	var data map[string]interface{}
-	if err := json.Unmarshal([]byte(padsJSON), &data); err != nil {
-		return styles
-	}
-	programPads, ok := data["ProgramPads-v2.10"].(map[string]interface{})
-	if !ok {
-		return styles
-	}
-	pads, ok := programPads["pads"].(map[string]interface{})
-	if !ok {
-		return styles
-	}
-
-	for i := range 16 {
-		val, ok := pads[fmt.Sprintf("value%d", i)]
-		if !ok {
-			continue
-		}
-		colorInt := int(val.(float64))
-		r := (colorInt >> 16) & 0xFF
-		g := (colorInt >> 8) & 0xFF
-		b := colorInt & 0xFF
-		styles[i] = lipgloss.NewStyle().Foreground(lipgloss.Color(fmt.Sprintf("#%02x%02x%02x", r, g, b)))
-	}
-	return styles
-}
