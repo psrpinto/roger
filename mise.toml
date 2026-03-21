@@ -1,25 +1,76 @@
+[env]
+APP_NAME="Roger"
+APP_BUNDLE_ID="io.github.psrpinto.roger"
+APP_VERSION = "0.9.0"
+
 [tools]
-go = "1.25"
+go = "1.24.6"
 
 [tasks.install]
 alias = "i"
+description = "Set up development environment"
 run = [
     "mise install",
     "go mod download",
     "go install fyne.io/tools/cmd/fyne@latest",
+    "go install github.com/fyne-io/fyne-cross@latest",
 ]
 
-[tasks.build]
-description = "Build"
-alias = "b"
-run = "fyne package -os darwin -icon icon.png"
-
 [tasks.start]
-description = "Start"
+description = "Start app in development (macOS)"
 alias = "s"
-depends = "build"
-run = "open roger.app"
+depends = "build:darwin"
+run = "open build/Roger.app"
 
 [tasks.demo]
 description = "Run fyne demo app"
 run = "go run fyne.io/demo@latest"
+
+[tasks."clear-permissions:darwin"]
+description = "Clear permissions (macOS)"
+run = "tccutil reset All $APP_BUNDLE_ID"
+
+[tasks."build:darwin"]
+description = "Build (macOS)"
+run = "BUILD_OS=darwin mise run build"
+
+[tasks."build:windows"]
+description = "Build (Windows)"
+run = "mise run build:cross -- windows amd64"
+
+[tasks.build]
+description = "Build"
+run = '''
+set -ex
+mkdir -p build && cd build
+
+fyne package \
+  --source-dir ../ \
+  --os "$BUILD_OS" \
+  --name "$APP_NAME" \
+  --app-id "$APP_BUNDLE_ID" \
+  --app-version "$APP_VERSION" \
+  --icon icon.png
+'''
+
+[tasks."build:cross"]
+description = "Build with fyne-cross"
+usage = '''
+arg "<os>" help="Target OS"
+arg "<arch>" help="Target architecture"
+'''
+run = '''
+set -ex
+
+fyne-cross "$usage_os" \
+  -arch "$usage_arch" \
+  -name "$APP_NAME" \
+  -app-id "$APP_BUNDLE_ID" \
+  -app-version "$APP_VERSION" \
+  -icon icon.png
+
+mkdir -p build
+rm -rf "build/$usage_os-$usage_arch"
+mv "fyne-cross/dist/$usage_os-$usage_arch" build/
+rm -rf fyne-cross
+'''
