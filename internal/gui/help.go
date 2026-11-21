@@ -24,12 +24,11 @@ func showHelp(window fyne.Window, baseDir string) {
 func appHelpText(baseDir string) string {
 	var b strings.Builder
 
-	fmt.Fprintln(&b, "roger organizes samples into MPC-ready kits and instruments.")
+	fmt.Fprintln(&b, "roger organizes samples into MPC-ready kits.")
 	fmt.Fprintln(&b)
 	fmt.Fprintf(&b, "Workspace: %s\n", baseDir)
 	fmt.Fprintln(&b)
 	fmt.Fprintln(&b, "  Kits/          Drum sample packs")
-	fmt.Fprintln(&b, "  Instruments/   Instrument sample directories")
 	fmt.Fprintln(&b, "  Output/        Generated output (shared)")
 
 	return b.String()

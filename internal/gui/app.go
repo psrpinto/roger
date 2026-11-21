@@ -22,7 +22,6 @@ type App struct {
 	cfg        *config.Config
 	baseDir    string
 	kitsSrcDir string
-	instSrcDir string
 	destDir    string
 	padColors  [16]color.NRGBA
 }
@@ -36,7 +35,6 @@ func NewApp() *App {
 
 	a.baseDir = filepath.Join(sampler.DesktopDir(), "roger")
 	a.kitsSrcDir = filepath.Join(a.baseDir, "Kits")
-	a.instSrcDir = filepath.Join(a.baseDir, "Instruments")
 	a.destDir = filepath.Join(a.baseDir, "Output")
 
 	for _, dir := range []string{a.baseDir, a.destDir} {
@@ -81,9 +79,7 @@ func NewApp() *App {
 // Run builds the tabbed layout and starts the application.
 func (a *App) Run() {
 	kitsTab := newKitsTab(a)
-	instrumentsTab := newInstrumentsTab(a)
-
-	tabs := container.NewAppTabs(kitsTab, instrumentsTab)
+	tabs := container.NewAppTabs(kitsTab)
 
 	a.window.SetContent(tabs)
 	a.window.Resize(fyne.NewSize(900, 700))
