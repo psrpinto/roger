@@ -25,7 +25,7 @@ If you're not used to working with terminals, you can also just double-click the
 ```shell
 roger [kits|instruments] [PackName ...]
 ```
-The first time you run `roger`, it creates a folder on your Desktop named `roger` containing `Kits/`, `Instruments/`, and `Output/` folders, and configuration files. If `Kits/` is empty, `roger` generates example packs so you can see how things work.
+The first time you run `roger`, a short onboarding guides you through choosing a workspace folder. `roger` creates `Kits/` and `Output/` folders and configuration files inside it, and offers to generate example packs so you can see how things work. You can switch to a different workspace at any time via File → Change Workspace….
 
 With no arguments, all packs in the mode's input directory are processed. Pass one or more pack names to process only those.
 
@@ -89,7 +89,7 @@ Kits/
 
 ## Configuration
 
-`roger` creates a `config.yaml` in the `roger` folder on your Desktop on first run with sensible defaults. It controls how samples are detected and assigned to pads. You can edit this file to customize the behaviour.
+`roger` creates a `config.yaml` in your workspace folder with sensible defaults. It controls how samples are detected and assigned to pads. You can edit this file to customize the behaviour.
 
 ### How sample assignment works
 
@@ -130,7 +130,7 @@ The type names used here must match names defined in `drum_types`.
 
 ### Custom program template
 
-`roger` ships with a default MPC program template. To use your own, export a drum program from the MPC as an `.xpm` file, rename it to `kit.xpm`, and place it in the `roger` folder on your Desktop.
+`roger` ships with a default MPC program template. To use your own, export a drum program from the MPC as an `.xpm` file, rename it to `kit.xpm`, and place it in your workspace folder.
 
 `roger` will use it as the base for all generated programs, preserving your pad colors and other settings.
 

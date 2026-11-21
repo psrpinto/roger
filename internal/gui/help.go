@@ -11,6 +11,9 @@ import (
 )
 
 func showHelp(window fyne.Window, baseDir string) {
+	if baseDir == "" {
+		baseDir = "(not chosen yet)"
+	}
 	text := appHelpText(baseDir) + "\n" + kitsHelpText(baseDir)
 	label := widget.NewLabel(text)
 	label.Wrapping = fyne.TextWrapWord

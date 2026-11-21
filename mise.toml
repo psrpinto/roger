@@ -30,6 +30,10 @@ run = "go run fyne.io/demo@latest"
 description = "Clear permissions (macOS)"
 run = "tccutil reset All $APP_BUNDLE_ID"
 
+[tasks."clear-preferences:darwin"]
+description = "Clear preferences (macOS)"
+run = "rm -rf ~/Library/Preferences/fyne/$APP_BUNDLE_ID"
+
 [tasks."build:darwin"]
 description = "Build (macOS)"
 run = "BUILD_OS=darwin mise run build"
